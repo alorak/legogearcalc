@@ -6,878 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Technic Gear Calculator - LEGO Hub</title>
     <meta name="description" content="LEGO Technic gear ratio calculator and simulator.">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 50%, #cbd5e1 100%);
-            min-height: 100vh;
-            color: #1e293b;
-            user-select: none;
-        }
-
-        .en-content,
-        .tr-content {
-            display: none;
-        }
-
-        .lang-en .en-content,
-        .lang-tr .tr-content {
-            display: inline;
-        }
-
-        .sidebar-footer {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 20px;
-            padding-top: 12px;
-            border-top: 1px solid #e2e8f0;
-        }
-
-        .lang-switch {
-            display: inline-flex;
-            gap: 4px;
-            padding: 3px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            background: #fff;
-        }
-
-        .lang-btn {
-            border: 0;
-            border-radius: 6px;
-            background: transparent;
-            color: #64748b;
-            padding: 5px 8px;
-            font-size: 0.72rem;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        .lang-btn.active {
-            background: #e0f2fe;
-            color: #0369a1;
-        }
-
-        /* Main Layout */
-        .container {
-            max-width: 100%;
-            margin: 0;
-            padding: 0;
-            height: 100vh;
-            height: 100dvh;
-            overflow: hidden;
-        }
-
-        .main-grid {
-            display: flex;
-            height: 100%;
-            margin: 0;
-            gap: 0;
-        }
-
-        /* Sidebar / Palette */
-        .sidebar {
-            width: 330px;
-            /* Slightly wider for comfort */
-            height: 100%;
-            background: #f8fafc;
-            border-right: 1px solid #e2e8f0;
-            padding: 20px;
-            overflow-y: auto;
-            flex-shrink: 0;
-            border-radius: 0;
-            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
-            z-index: 10;
-        }
-
-        .sidebar h2 {
-            font-size: 1.1rem;
-            color: #0066cc;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #e2e8f0;
-            padding-bottom: 10px;
-        }
-
-        .gear-palette {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 8px;
-        }
-
-        .gear-option {
-            background: #f8fafc;
-            border-radius: 12px;
-            padding: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 2px solid #e2e8f0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-            min-width: 0;
-        }
-
-        .gear-option:hover {
-            background: #e2e8f0;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .gear-option.selected {
-            border-color: #0066cc;
-            background: #e0f2fe;
-            box-shadow: 0 0 15px rgba(0, 102, 204, 0.2);
-        }
-
-        .gear-option svg {
-            width: 45px;
-            height: 45px;
-        }
-
-        .gear-option span {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: #475569;
-        }
-
-        /* Hide red axle in sidebar icons, show black hole instead */
-        .gear-icon-wrapper path[fill="#EF4444"],
-        .gear-icon-wrapper path[fill="#ef4444"],
-        .gear-icon-wrapper path[fill="#fbbf24"] {
-            display: none;
-        }
-
-        /* Delete Mode Button */
-        .delete-mode-btn {
-            width: 100%;
-            margin-top: 15px;
-            min-height: 58px;
-            padding: 12px;
-            border-radius: 10px;
-            border: 2px solid #e2e8f0;
-            background: #fff;
-            color: #64748b;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .delete-mode-btn:hover {
-            background: #fef2f2;
-            border-color: #fca5a5;
-            color: #dc2626;
-        }
-
-        .delete-mode-btn.active {
-            background: #dc2626;
-            border-color: #dc2626;
-            color: #fff;
-        }
-
-        .gear-action-row {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 8px;
-            align-items: stretch;
-            margin-top: 15px;
-        }
-
-        .gear-action-row .delete-mode-btn {
-            margin-top: 0;
-            min-width: 0;
-        }
-
-        .tooth-mode-btn {
-            flex-direction: column;
-            gap: 3px;
-            padding: 7px 10px;
-            overflow: hidden;
-            background-color: #f8fafc;
-            border-color: #cbd5e1;
-            color: #64748b;
-        }
-
-        .tooth-btn-icon {
-            width: 30px;
-            height: 30px;
-            display: grid;
-            place-items: center;
-            transition: transform 0.3s;
-            transform-origin: center;
-        }
-
-        .tooth-btn-icon svg {
-            display: block;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-        }
-
-        .tooth-mode-btn .tooth-label {
-            font-size: 0.8rem;
-            line-height: 1;
-            font-weight: 600;
-        }
-
-        /* Motor Mode Button */
-        .motor-mode-btn {
-            display: block;
-            width: 100%;
-            padding: 10px;
-            margin-top: 10px;
-            border-radius: 10px;
-            border: 2px solid #f59e0b;
-            background: #fffbeb;
-            color: #d97706;
-            font-size: 0.85rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .motor-mode-btn:hover {
-            background: #fef3c7;
-        }
-
-        .motor-mode-btn.active {
-            background: #f59e0b;
-            border-color: #f59e0b;
-            color: #fff;
-        }
-
-        /* Motor Direction Buttons */
-        .motor-dir-btn {
-            flex: 1;
-            padding: 6px 8px;
-            border-radius: 6px;
-            border: 1px solid #d97706;
-            background: #fff;
-            color: #92400e;
-            font-size: 0.7rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .motor-dir-btn:hover {
-            background: #fef3c7;
-        }
-
-        .motor-dir-btn.active {
-            background: #f59e0b;
-            border-color: #b45309;
-            color: #fff;
-        }
-
-        /* Beam Count Buttons */
-        .beam-count-btn {
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
-            border: 2px solid #e2e8f0;
-            background: #fff;
-            color: #64748b;
-            font-size: 0.9rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .beam-count-btn:hover {
-            background: #e0f2fe;
-            border-color: #0066cc;
-            color: #0066cc;
-        }
-
-        .beam-count-btn.active {
-            background: #0066cc;
-            border-color: #0066cc;
-            color: #fff;
-        }
-
-        /* Canvas Area */
-        /* Canvas Area */
-        .canvas-area {
-            flex: 1;
-            background: #ffffff;
-            border-radius: 0;
-            margin: 0;
-            padding: 0;
-            border: none;
-            box-shadow: none;
-            height: 100%;
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            /* Vertical layout */
-            align-items: stretch;
-            justify-content: flex-start;
-        }
-
-        .simulation-container {
-            flex: 1;
-            /* Take remaining space */
-            width: 100%;
-            margin: 0;
-            position: relative;
-            overflow: auto;
-            /* Scroll if content is big */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transform-origin: center;
-            padding: 0;
-        }
-
-        .bottom-panel {
-            width: 100%;
-            background: #f8fafc;
-            border-top: 1px solid #e2e8f0;
-            padding: 15px 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            z-index: 20;
-            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
-        }
-
-        /* Side View Panel (Top Right) */
-        .side-view-panel {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 340px;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(4px);
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 12px;
-            z-index: 40;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-        }
-
-        .side-view-panel:hover {
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-        }
-
-        .side-view-header {
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #64748b;
-            font-weight: 700;
-            margin-bottom: 8px;
-            border-bottom: 2px solid #f1f5f9;
-            padding-bottom: 4px;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .side-view-content {
-            width: 100%;
-            min-height: 60px;
-            display: flex;
-            justify-content: center;
-        }
-
-        .controls {
-            position: static;
-            display: flex;
-            justify-content: flex-end;
-            /* Buttons to the right */
-            gap: 15px;
-            width: 100%;
-        }
-
-        .btn {
-            background: #0066cc;
-            border: none;
-            color: #fff;
-            padding: 8px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.2s;
-        }
-
-        .btn:hover {
-            background: #0052a3;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
-        }
-
-        .btn-danger {
-            background: #dc2626;
-        }
-
-        .btn-danger:hover {
-            background: #b91c1c;
-        }
-
-        /* Simulation Container */
-
-
-        .beams-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0;
-        }
-
-        .beam-wrapper {
-            position: relative;
-        }
-
-        /* Technic Beam - taller to represent 1.2 stud height ratio */
-        .technic-beam {
-            position: relative;
-            background: #0056b3;
-            /* Classic Technic Blue */
-            border-radius: 2px;
-            /* Flex restored */
-            display: flex;
-            align-items: flex-start;
-            /* Align content to top */
-            padding: 9px 35px 18px 5px;
-            /* Ratio 1:3.5:2 -> Top 9px, Right 35px, Hole 30px, Bottom 18px */
-            box-shadow:
-                inset 0 2px 5px rgba(255, 255, 255, 0.2),
-                inset 0 -2px 5px rgba(0, 0, 0, 0.3),
-                0 10px 20px rgba(0, 0, 0, 0.4);
-            border: 1px solid #004494;
-        }
-
-        /* Studs on top of beam */
-        .beam-studs {
-            position: absolute;
-            top: -10px;
-            left: 20px;
-            display: flex;
-            gap: 0;
-            z-index: 1;
-        }
-
-        .stud {
-            width: 30px;
-            height: 10px;
-            background: linear-gradient(180deg, #0077d4 0%, #0056b3 50%, #004494 100%);
-            border-radius: 4px 4px 0 0;
-            margin-right: 20px;
-            /* STUD_SPACING - stud_width */
-            box-shadow:
-                inset 0 2px 3px rgba(255, 255, 255, 0.3),
-                0 -1px 2px rgba(0, 0, 0, 0.2);
-            border: 1px solid #004494;
-            border-bottom: none;
-        }
-
-        .stud:last-child {
-            margin-right: 0;
-        }
-
-        .beam-holes {
-            display: flex;
-            position: relative;
-        }
-
-        .beam-hole {
-            width: 30px;
-            height: 30px;
-            background: #ffffff;
-            border-radius: 50%;
-            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
-            cursor: pointer;
-            position: relative;
-            transition: all 0.2s;
-            border: 2px solid #e2e8f0;
-            z-index: 2;
-        }
-
-        .beam-hole:hover {
-            border-color: #0066cc;
-            background: #e0f2fe;
-        }
-
-        .beam-hole.has-gear {
-            background: #1e293b;
-            border-color: transparent;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
-        }
-
-        .beam-hole.active {
-            border-color: #0066cc;
-            background: rgba(0, 102, 204, 0.3);
-        }
-
-        .beam-hole.invalid {
-            border-color: #dc2626;
-            background: rgba(220, 38, 38, 0.2);
-        }
-
-        .beam-hole.has-motor {
-            background: #f59e0b;
-            border-color: #d97706;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 8px rgba(245, 158, 11, 0.5);
-        }
-
-        .beam-hole::after {
-            content: attr(data-index);
-            position: absolute;
-            top: 55px;
-            /* Below the beam (Height ~57px) */
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 0.75rem;
-            color: #333;
-            /* Darker color */
-            opacity: 0.9;
-            display: block;
-            /* Always show numbers */
-            font-weight: bold;
-        }
-
-        /* Show numbers only on the last beam */
-        .beam-wrapper:last-child .beam-hole::after {
-            display: block;
-        }
-
-        /* Delete mode cursor */
-        .delete-mode .beam-hole {
-            cursor: crosshair;
-        }
-
-        .delete-mode .beam-hole:hover {
-            border-color: #dc2626;
-            background: rgba(220, 38, 38, 0.2);
-        }
-
-        /* Placed Gear on Beam */
-        .gear-on-beam {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            /* Center on the hole */
-            pointer-events: none;
-            /* Let clicks pass to the remove button or hole */
-            transition: transform 0.1s linear;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 20;
-            /* Ensure on top of beam */
-        }
-
-        .gear-remove-btn {
-            position: absolute;
-            top: -20px;
-            /* Position relative to the hole center */
-            right: -20px;
-            background: #e74c3c;
-            color: white;
-            border: none;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            font-size: 12px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.2s;
-            pointer-events: auto;
-            z-index: 100;
-        }
-
-        .beam-hole:hover .gear-remove-btn,
-        .gear-on-beam:hover+.gear-remove-btn {
-            /* Tricky to target, easier if button is inside hole */
-            opacity: 1;
-        }
-
-        /* Make the gear visually partially transparent when hovering the hole to see underlying structure optional */
-
-        /* Connection Lines */
-        .connection-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 5;
-        }
-
-        .connection-indicator {
-            position: absolute;
-            height: 6px;
-            background: #2ecc71;
-            top: 50%;
-            transform: translateY(-50%);
-            border-radius: 3px;
-            transition: all 0.3s;
-            opacity: 0.7;
-        }
-
-        .connection-indicator.error {
-            background: #e74c3c;
-            height: 8px;
-            animation: pulse 1s infinite;
-            z-index: 6;
-        }
-
-        @keyframes pulse {
-            0% {
-                opacity: 0.4;
-            }
-
-            50% {
-                opacity: 0.8;
-            }
-
-            100% {
-                opacity: 0.4;
-            }
-        }
-
-        /* Info Panel */
-        .info-panel {
-            margin-top: 20px;
-            background: #f1f5f9;
-            padding: 15px;
-            border-radius: 12px;
-            width: 100%;
-            border: 1px solid #e2e8f0;
-        }
-
-        .info-text {
-            color: #475569;
-            font-size: 0.9rem;
-            line-height: 1.5;
-        }
-
-        .info-text strong {
-            color: #1e293b;
-        }
-
-        /* Simulation Stats Panel */
-        .simulation-stats {
-            width: 100%;
-            margin-top: 15px;
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 15px;
-            display: none;
-        }
-
-        .simulation-stats.active {
-            display: block;
-        }
-
-        .stats-title {
-            font-size: 0.9rem;
-            font-weight: 700;
-            color: #0066cc;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .stats-grid {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .gear-stat-card {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 8px;
-            min-width: 125px;
-            flex: 0 1 auto;
-        }
-
-        .gear-stat-card.driver {
-            border-color: #0066cc;
-            background: #e0f2fe;
-            /* Light blue for driver when idle */
-            box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
-        }
-
-        .gear-stat-card.active-spinning {
-            background: #dcfce7 !important;
-            /* Light green when running */
-            border-color: #4ade80 !important;
-            transition: background-color 0.3s;
-        }
-
-        .gear-stat-header {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            margin-bottom: 8px;
-        }
-
-        .gear-stat-color {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-        }
-
-        .gear-stat-name {
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #1e293b;
-        }
-
-        .gear-stat-hole {
-            font-size: 0.7rem;
-            color: #64748b;
-        }
-
-        .gear-stat-values {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .gear-stat-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.75rem;
-        }
-
-        .gear-stat-label {
-            color: #64748b;
-        }
-
-        .gear-stat-value {
-            font-weight: 600;
-            color: #1e293b;
-        }
-
-        .gear-stat-value.cw {
-            color: #16a34a;
-        }
-
-        .gear-stat-value.ccw {
-            color: #dc2626;
-        }
-
-        .rotation-indicator {
-            font-size: 1rem;
-        }
-
-        @media (max-width: 900px) {
-            .main-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .gear-palette {
-                grid-template-columns: repeat(3, 1fr);
-            }
-
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        /* Warning Modal */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s;
-        }
-
-        .modal-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .modal-content {
-            background: white;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-            max-width: 400px;
-            width: 90%;
-            text-align: center;
-            transform: translateY(-20px);
-            transition: transform 0.3s;
-        }
-
-        .modal-overlay.active .modal-content {
-            transform: translateY(0);
-        }
-
-        .modal-icon {
-            font-size: 3rem;
-            margin-bottom: 15px;
-        }
-
-        .modal-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 10px;
-        }
-
-        .modal-message {
-            color: #64748b;
-            margin-bottom: 20px;
-            line-height: 1.5;
-        }
-
-        .modal-btn {
-            background: #0066cc;
-            color: white;
-            border: none;
-            padding: 10px 24px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .modal-btn:hover {
-            background: #0052a3;
-        }
-    </style>
+    <link rel="stylesheet" href="./styles.css">
 </head>
 
 <body class="lang-en">
@@ -935,25 +64,13 @@
                     <div class="gear-action-row">
                         <button class="delete-mode-btn" id="deleteModeBtn" onclick="toggleDeleteMode()"
                             style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round">
-                                <polyline points="3 6 5 6 21 6"></polyline>
-                                <path
-                                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
-                                </path>
-                            </svg>
+                            <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="./assets/icons.svg#icon-trash"></use></svg>
                             <span class="en-content">Delete Gear</span><span class="tr-content">Dişli Sil</span>
                         </button>
                         <!-- Tooth Button Added -->
                         <button class="delete-mode-btn tooth-mode-btn" id="toothModeBtn" onclick="toggleToothMode()">
                             <div class="tooth-btn-icon" id="toothBtnIcon">
-                                <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true">
-                                    <path id="toothBtnPath" d="M38 58 L 50 10 L 62 58 Z" fill="#94a3b8"
-                                        stroke="#64748b" stroke-width="6" stroke-linejoin="round" />
-                                    <circle id="toothBtnCircle" cx="50" cy="58" r="16" fill="#94a3b8" stroke="#64748b"
-                                        stroke-width="6" />
-                                </svg>
+                                <svg class="ui-icon icon-tooth" aria-hidden="true" focusable="false"><use href="./assets/icons.svg#icon-tooth"></use></svg>
                             </div>
                             <span class="tooth-label">Tooth</span>
                         </button>
@@ -1054,35 +171,17 @@
                 <div class="bottom-panel">
                     <div class="controls">
                         <button class="btn" id="toggleRun" style="display: flex; align-items: center; gap: 8px;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-                                fill="currentColor" stroke="none" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round">
-                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                            </svg>
+                            <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="./assets/icons.svg#icon-play"></use></svg>
                             <span class="en-content">Run</span><span class="tr-content">Çalıştır</span>
                         </button>
                         <button class="btn" id="runOneTurn"
                             style="display: flex; align-items: center; gap: 8px; background: #059669;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round">
-                                <path d="M21 12a9 9 0 11-6.219-8.56"></path>
-                                <polyline points="21 3 21 9 15 9"></polyline>
-                            </svg>
+                            <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="./assets/icons.svg#icon-rotate"></use></svg>
                             <span class="en-content">1 Turn</span><span class="tr-content">1 Tur</span>
                         </button>
                         <button class="btn btn-danger" id="clearBoard"
                             style="display: flex; align-items: center; gap: 8px;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round">
-                                <polyline points="3 6 5 6 21 6"></polyline>
-                                <path
-                                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
-                                </path>
-                                <line x1="10" y1="11" x2="10" y2="17"></line>
-                                <line x1="14" y1="11" x2="14" y2="17"></line>
-                            </svg>
+                            <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="./assets/icons.svg#icon-clear"></use></svg>
                             <span class="en-content">Clear</span><span class="tr-content">Temizle</span>
                         </button>
                     </div>
@@ -1112,17 +211,29 @@
         // radius: The pitch radius in "studs".
         // Diameter = 2 * radius.
         // Example: 8T has 0.5 stud radius (1 stud diameter). Fits perfectly with another 8T on adjacent hole (dist 1).
+        const REBRICKABLE_ELEMENT_CDN = 'https://cdn.rebrickable.com/media/parts/elements';
+        const ICON_SPRITE_URL = './assets/icons.svg';
+
+        // elementId controls only the palette photo. Physics/rendering still use teeth/radius/type.
         const GEARS = [
-            { teeth: 0, radius: 0.5, color: '#FFD706', type: 'bush' }, // Bush (Spacer) - Yellow
-            { teeth: 8, radius: 0.5, color: '#A4A5AF', type: 'spur' },
-            { teeth: 12, radius: 0.75, color: '#0066cc', type: 'bevel' },
-            { teeth: 16, radius: 1.0, color: '#a0a0a0', type: 'spur' },
-            { teeth: 20, radius: 1.25, color: '#e4cd9e', type: 'double' }, // Tan (Updated from image)
-            { teeth: 24, radius: 1.5, color: '#595d60', type: 'spur' },   // Dark Gray
-            { teeth: 28, radius: 1.75, color: '#9ca3af', type: 'double' }, // Light Gray (New Design)
-            { teeth: 36, radius: 2.25, color: '#1a1a1a', type: 'spur' },  // Black
-            { teeth: 40, radius: 2.5, color: '#7f8c8d', type: 'spur' }
+            { teeth: 0, radius: 0.5, color: '#FFD706', type: 'bush', partNum: '32123b', elementId: '6271167' },
+            { teeth: 8, radius: 0.5, color: '#A4A5AF', type: 'spur', partNum: '10928', elementId: '6012451' },
+            { teeth: 12, radius: 0.75, color: '#0066cc', type: 'bevel', partNum: '32270', elementId: '4177431' },
+            { teeth: 16, radius: 1.0, color: '#a0a0a0', type: 'spur', partNum: '94925', elementId: '4640536' },
+            { teeth: 20, radius: 1.25, color: '#e4cd9e', type: 'double', partNum: '32269', elementId: '6346517' },
+            { teeth: 24, radius: 1.5, color: '#595d60', type: 'spur', partNum: '3648b', elementId: '4514558' },
+            { teeth: 28, radius: 1.75, color: '#9ca3af', type: 'double', partNum: '46372', elementId: '6259270' },
+            { teeth: 36, radius: 2.25, color: '#1a1a1a', type: 'spur', partNum: '32498', elementId: '4255563' },
+            { teeth: 40, radius: 2.5, color: '#7f8c8d', type: 'spur', partNum: '3649', elementId: '6195314' }
         ];
+
+        function rebrickableElementImage(elementId) {
+            return `${REBRICKABLE_ELEMENT_CDN}/${elementId}.jpg`;
+        }
+
+        function iconSvg(name, className = 'ui-icon') {
+            return `<svg class="${className}" aria-hidden="true" focusable="false"><use href="${ICON_SPRITE_URL}#icon-${name}"></use></svg>`;
+        }
 
         // --- STATE ---
         let selectedGearIndex = null;
@@ -1273,7 +384,7 @@
             const btn = document.getElementById('deleteModeBtn');
             const simContainer = document.getElementById('simContainer');
 
-            const trashIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+            const trashIcon = iconSvg('trash', 'ui-icon ui-icon--sm');
 
             if (deleteMode) {
                 btn.classList.add('active');
@@ -1314,8 +425,6 @@
             const panel = document.getElementById('toothSettingsPanel');
             const deleteBtn = document.getElementById('deleteModeBtn');
             const motorBtn = document.getElementById('motorModeBtn');
-            const path = document.getElementById('toothBtnPath');
-            const circle = document.getElementById('toothBtnCircle');
 
             // Toggle classes
             if (toothMode) {
@@ -1324,8 +433,6 @@
                 btn.style.borderColor = '#fdba74';
                 btn.style.color = '#c2410c';
                 btn.classList.add('active');
-                if (path) { path.setAttribute('fill', '#FF7F00'); path.setAttribute('stroke', '#9a3412'); }
-                if (circle) { circle.setAttribute('fill', '#FF7F00'); circle.setAttribute('stroke', '#9a3412'); }
 
                 if (panel) panel.style.display = 'block';
                 if (deleteBtn) deleteBtn.classList.remove('active');
@@ -1340,8 +447,6 @@
                 btn.style.borderColor = '#cbd5e1';
                 btn.style.color = '#64748b';
                 btn.classList.remove('active');
-                if (path) { path.setAttribute('fill', '#94a3b8'); path.setAttribute('stroke', '#64748b'); }
-                if (circle) { circle.setAttribute('fill', '#94a3b8'); circle.setAttribute('stroke', '#64748b'); }
 
                 if (panel) panel.style.display = 'none';
             }
@@ -1356,7 +461,7 @@
             // Update UI
             document.querySelectorAll('.gear-option').forEach(el => el.classList.remove('selected'));
             document.getElementById('deleteModeBtn').classList.remove('active');
-            const trashIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+            const trashIcon = iconSvg('trash', 'ui-icon ui-icon--sm');
             document.getElementById('deleteModeBtn').innerHTML = trashIcon + t('deleteGear');
             document.getElementById('simContainer').classList.remove('delete-mode');
 
@@ -1411,12 +516,34 @@
         function renderPalette() {
             const container = document.getElementById('gearPalette');
             container.innerHTML = GEARS.map((gear, index) => {
+                const label = gear.teeth > 0 ? `${gear.teeth} ${t('teeth')}` : t('bore');
+                const alt = gear.teeth > 0
+                    ? `LEGO Technic ${gear.teeth} tooth gear, part ${gear.partNum}`
+                    : `LEGO Technic bush, part ${gear.partNum}`;
+
                 return `
                 <div class="gear-option" onclick="selectGear(${index})" id="gearOption_${index}">
-                    ${generateGearIconSVG(gear.teeth, gear.color, gear.radius)}
-                    <span>${gear.type === 'tooth' ? 'Tooth' : (gear.teeth > 0 ? gear.teeth + ' ' + t('teeth') : t('bore'))}</span>
+                    <div class="gear-image-wrapper">
+                        <img
+                            class="gear-part-image"
+                            src="${rebrickableElementImage(gear.elementId)}"
+                            alt="${alt}"
+                            loading="lazy"
+                            decoding="async"
+                            onerror="handlePaletteImageError(this, ${index})">
+                    </div>
+                    <span>${label}</span>
                 </div>
             `}).join('');
+        }
+
+        function handlePaletteImageError(img, index) {
+            const gear = GEARS[index];
+            const wrapper = img && img.parentElement;
+            if (!gear || !wrapper) return;
+
+            // Rebrickable is an external dependency. Keep the app usable if an image is unavailable.
+            wrapper.innerHTML = generateGearIconSVG(gear.teeth, gear.color, gear.radius);
         }
 
         function selectGear(index) {
@@ -1424,7 +551,7 @@
             if (deleteMode) {
                 deleteMode = false;
                 document.getElementById('deleteModeBtn').classList.remove('active');
-                const trashIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+                const trashIcon = iconSvg('trash', 'ui-icon ui-icon--sm');
                 document.getElementById('deleteModeBtn').innerHTML = trashIcon + t('deleteGear');
                 document.getElementById('simContainer').classList.remove('delete-mode');
             }
@@ -1460,22 +587,7 @@
 
         function renderBeam() {
             const container = document.getElementById('simContainer');
-
-            // Inject CSS for Tabs (One time check)
-            if (!document.getElementById('tabStyles')) {
-                const style = document.createElement('style');
-                style.id = 'tabStyles';
-                style.textContent = `
-                    .tabs-bar { display: flex; gap: 4px; margin-bottom: 0; padding-left: 10px; border-bottom: 1px solid #cbd5e1; }
-                    .beam-tab { padding: 8px 20px; background: #f1f5f9; border-radius: 8px 8px 0 0; cursor: pointer; color: #64748b; font-weight: 500; font-size: 0.9rem; border: 1px solid #e2e8f0; border-bottom: none; margin-bottom: -1px; transition: all 0.2s; }
-                    .beam-tab:hover { background: #e2e8f0; }
-                    .beam-tab.active { background: #ffffff; color: #0066cc; border-color: #cbd5e1; border-bottom-color: #fff; z-index: 10; font-weight: bold; }
-                    .beam-content-area { position: relative; z-index: 5; padding-top: 20px; min-height: 180px; }
-                `;
-                document.head.appendChild(style);
-            }
-
-            // Color Map Logic
+// Color Map Logic
             const colorMap = {
                 'blue': '#0055BF',
                 'red': '#C91A09',
