@@ -40,13 +40,12 @@
             const visited = new Set();
             visited.add(`${startBeam}_${startHole}`);
 
-            // Rotate Initial Stack (Axle)
             if (boardState[startBeam] && boardState[startBeam][startHole]) {
-                let g = boardState[startBeam][startHole];
-                while (g) {
-                    g.angle = (g.angle || 0) + deltaAngle;
-                    g = g.nextLayer;
-                }
+                setAxleAngle(
+                    startBeam,
+                    startHole,
+                    getAxleAngle(startBeam, startHole) + deltaAngle
+                );
             }
 
             let head = 0;
@@ -56,22 +55,21 @@
 
                 const neighbors = gearConnectionsMap[key] || [];
                 for (const neighbor of neighbors) {
-                    const nKey = `${neighbor.b}_${neighbor.h}`;
-                    if (!visited.has(nKey)) {
-                        visited.add(nKey);
-                        const nDelta = delta * neighbor.ratio;
+                    const neighborKey = `${neighbor.b}_${neighbor.h}`;
+                    if (visited.has(neighborKey)) continue;
 
-                        // Rotate Neighbor Stack
-                        if (boardState[neighbor.b] && boardState[neighbor.b][neighbor.h]) {
-                            let ng = boardState[neighbor.b][neighbor.h];
-                            while (ng) {
-                                ng.angle = (ng.angle || 0) + nDelta;
-                                ng = ng.nextLayer;
-                            }
-                        }
+                    visited.add(neighborKey);
+                    const neighborDelta = delta * neighbor.ratio;
 
-                        queue.push({ b: neighbor.b, h: neighbor.h, delta: nDelta });
+                    if (boardState[neighbor.b] && boardState[neighbor.b][neighbor.h]) {
+                        setAxleAngle(
+                            neighbor.b,
+                            neighbor.h,
+                            getAxleAngle(neighbor.b, neighbor.h) + neighborDelta
+                        );
                     }
+
+                    queue.push({ b: neighbor.b, h: neighbor.h, delta: neighborDelta });
                 }
             }
         }
@@ -113,7 +111,8 @@
                 placementCollision: 'This part cannot be placed here because it physically overlaps another part on the same layer.',
                 placementPhaseConflict: 'This gear cannot mesh with all neighboring gears at the same time. The tooth phases are incompatible.',
                 maxGearLayers: 'This axle already has the maximum of 2 gear layers.',
-                toothNeedsGear: 'Place a gear first, then add the Tooth pointer to that gear.'
+                toothNeedsGear: 'Place a gear first, then add the Tooth pointer to that gear.',
+                kinematicConflict: 'This gear network contains a ratio cycle that cannot rotate consistently.'
             },
             tr: {
                 teeth: 'Diş',
@@ -147,7 +146,8 @@
                 placementCollision: 'Bu parça aynı katmandaki başka bir parçayla fiziksel olarak çakıştığı için buraya eklenemez.',
                 placementPhaseConflict: 'Bu dişli tüm komşu dişlilerle aynı anda kavraşamaz. Diş fazları birbiriyle uyumsuz.',
                 maxGearLayers: 'Bu aks üzerinde en fazla 2 dişli katmanı kullanılabilir.',
-                toothNeedsGear: 'Önce bir dişli yerleştirin, ardından Tooth göstergesini o dişliye ekleyin.'
+                toothNeedsGear: 'Önce bir dişli yerleştirin, ardından Tooth göstergesini o dişliye ekleyin.',
+                kinematicConflict: 'Bu dişli ağında aynı anda tutarlı şekilde dönemeyen bir oran döngüsü var.'
             }
         };
 

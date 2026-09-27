@@ -51,6 +51,81 @@
         let toothMode = false;
         let currentPointerAngle = 0;
 
+        // Axle rotation is the single source of truth for every gear stacked on the same hole.
+        // Gear angle/velocity fields are kept synchronized for compatibility with existing UI/report code.
+        let axleState = [];
+
+        function createAxleState() {
+            return { angle: 0, velocity: 0 };
+        }
+
+        function initAxleState() {
+            axleState = [];
+            for (let beamIndex = 0; beamIndex < 5; beamIndex++) {
+                axleState.push(Array.from({ length: 11 }, createAxleState));
+            }
+        }
+
+        function resizeAxleState(count) {
+            const next = [];
+            for (let beamIndex = 0; beamIndex < count; beamIndex++) {
+                const existing = axleState[beamIndex];
+                next.push(existing || Array.from({ length: 11 }, createAxleState));
+            }
+            axleState = next;
+        }
+
+        function ensureAxleState(beamIndex, holeIndex) {
+            if (!axleState[beamIndex]) {
+                axleState[beamIndex] = Array.from({ length: 11 }, createAxleState);
+            }
+            if (!axleState[beamIndex][holeIndex]) {
+                axleState[beamIndex][holeIndex] = createAxleState();
+            }
+            return axleState[beamIndex][holeIndex];
+        }
+
+        function syncGearStackToAxle(beamIndex, holeIndex) {
+            const axle = ensureAxleState(beamIndex, holeIndex);
+            let gear = boardState[beamIndex] ? boardState[beamIndex][holeIndex] : null;
+            while (gear) {
+                gear.angle = axle.angle;
+                gear.velocity = axle.velocity;
+                gear = gear.nextLayer;
+            }
+        }
+
+        function getAxleAngle(beamIndex, holeIndex) {
+            return ensureAxleState(beamIndex, holeIndex).angle;
+        }
+
+        function setAxleAngle(beamIndex, holeIndex, angle) {
+            const axle = ensureAxleState(beamIndex, holeIndex);
+            axle.angle = Number.isFinite(angle) ? angle : 0;
+            syncGearStackToAxle(beamIndex, holeIndex);
+            return axle.angle;
+        }
+
+        function getAxleVelocity(beamIndex, holeIndex) {
+            return ensureAxleState(beamIndex, holeIndex).velocity;
+        }
+
+        function setAxleVelocity(beamIndex, holeIndex, velocity) {
+            const axle = ensureAxleState(beamIndex, holeIndex);
+            axle.velocity = Number.isFinite(velocity) ? velocity : 0;
+            syncGearStackToAxle(beamIndex, holeIndex);
+            return axle.velocity;
+        }
+
+        function resetAllAxleVelocities() {
+            for (let beamIndex = 0; beamIndex < axleState.length; beamIndex++) {
+                if (!axleState[beamIndex]) continue;
+                for (let holeIndex = 0; holeIndex < axleState[beamIndex].length; holeIndex++) {
+                    setAxleVelocity(beamIndex, holeIndex, 0);
+                }
+            }
+        }
+
         // Manual Gear Rotation State (Kinematic Drag)
         let gearConnectionsMap = {};
         let isDraggingGear = false;
@@ -63,6 +138,7 @@
             for (let i = 0; i < 5; i++) { // Max 5 beams
                 boardState.push(new Array(11).fill(null));
             }
+            initAxleState();
             motorPosition = null;
             updateMotorInfoPanel();
         }

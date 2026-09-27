@@ -286,6 +286,7 @@
                 }
             }
             boardState = newBoardState;
+            resizeAxleState(count);
 
             // Check if motor was on a removed beam
             if (motorPosition && motorPosition.beamIndex >= beamCount) {
