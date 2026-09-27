@@ -1,0 +1,3842 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Technic Gear Calculator - LEGO Hub</title>
+    <meta name="description" content="LEGO Technic gear ratio calculator and simulator.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="favicon.png" type="image/png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 50%, #cbd5e1 100%);
+            min-height: 100vh;
+            color: #1e293b;
+            user-select: none;
+        }
+
+        /* Main Layout */
+        .container {
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
+            height: calc(100vh - 52px);
+            overflow: hidden;
+        }
+
+        .main-grid {
+            display: flex;
+            height: 100%;
+            margin: 0;
+            gap: 0;
+        }
+
+        /* Sidebar / Palette */
+        .sidebar {
+            width: 330px;
+            /* Slightly wider for comfort */
+            height: 100%;
+            background: #f8fafc;
+            border-right: 1px solid #e2e8f0;
+            padding: 20px;
+            overflow-y: auto;
+            flex-shrink: 0;
+            border-radius: 0;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+            z-index: 10;
+        }
+
+        .sidebar h2 {
+            font-size: 1.1rem;
+            color: #0066cc;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        .gear-palette {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+        }
+
+        .gear-option {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .gear-option:hover {
+            background: #e2e8f0;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .gear-option.selected {
+            border-color: #0066cc;
+            background: #e0f2fe;
+            box-shadow: 0 0 15px rgba(0, 102, 204, 0.2);
+        }
+
+        .gear-option svg {
+            width: 45px;
+            height: 45px;
+        }
+
+        .gear-option span {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        /* Hide red axle in sidebar icons, show black hole instead */
+        .gear-icon-wrapper path[fill="#EF4444"],
+        .gear-icon-wrapper path[fill="#ef4444"],
+        .gear-icon-wrapper path[fill="#fbbf24"] {
+            display: none;
+        }
+
+        /* Delete Mode Button */
+        .delete-mode-btn {
+            width: 100%;
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 10px;
+            border: 2px solid #e2e8f0;
+            background: #fff;
+            color: #64748b;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .delete-mode-btn:hover {
+            background: #fef2f2;
+            border-color: #fca5a5;
+            color: #dc2626;
+        }
+
+        .delete-mode-btn.active {
+            background: #dc2626;
+            border-color: #dc2626;
+            color: #fff;
+        }
+
+        /* Motor Mode Button */
+        .motor-mode-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 10px;
+            border: 2px solid #f59e0b;
+            background: #fffbeb;
+            color: #d97706;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .motor-mode-btn:hover {
+            background: #fef3c7;
+        }
+
+        .motor-mode-btn.active {
+            background: #f59e0b;
+            border-color: #f59e0b;
+            color: #fff;
+        }
+
+        /* Motor Direction Buttons */
+        .motor-dir-btn {
+            flex: 1;
+            padding: 6px 8px;
+            border-radius: 6px;
+            border: 1px solid #d97706;
+            background: #fff;
+            color: #92400e;
+            font-size: 0.7rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .motor-dir-btn:hover {
+            background: #fef3c7;
+        }
+
+        .motor-dir-btn.active {
+            background: #f59e0b;
+            border-color: #b45309;
+            color: #fff;
+        }
+
+        /* Beam Count Buttons */
+        .beam-count-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            background: #fff;
+            color: #64748b;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .beam-count-btn:hover {
+            background: #e0f2fe;
+            border-color: #0066cc;
+            color: #0066cc;
+        }
+
+        .beam-count-btn.active {
+            background: #0066cc;
+            border-color: #0066cc;
+            color: #fff;
+        }
+
+        /* Canvas Area */
+        /* Canvas Area */
+        .canvas-area {
+            flex: 1;
+            background: #ffffff;
+            border-radius: 0;
+            margin: 0;
+            padding: 0;
+            border: none;
+            box-shadow: none;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            /* Vertical layout */
+            align-items: stretch;
+            justify-content: flex-start;
+        }
+
+        .simulation-container {
+            flex: 1;
+            /* Take remaining space */
+            width: 100%;
+            margin: 0;
+            position: relative;
+            overflow: auto;
+            /* Scroll if content is big */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform-origin: center;
+            padding: 0;
+        }
+
+        .bottom-panel {
+            width: 100%;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            padding: 15px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 20;
+            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Side View Panel (Top Right) */
+        .side-view-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 340px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(4px);
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px;
+            z-index: 40;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .side-view-panel:hover {
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .side-view-header {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            font-weight: 700;
+            margin-bottom: 8px;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .side-view-content {
+            width: 100%;
+            min-height: 60px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .controls {
+            position: static;
+            display: flex;
+            justify-content: flex-end;
+            /* Buttons to the right */
+            gap: 15px;
+            width: 100%;
+        }
+
+        .btn {
+            background: #0066cc;
+            border: none;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #0052a3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+        }
+
+        .btn-danger {
+            background: #dc2626;
+        }
+
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+
+        /* Simulation Container */
+
+
+        .beams-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+        }
+
+        .beam-wrapper {
+            position: relative;
+        }
+
+        /* Technic Beam - taller to represent 1.2 stud height ratio */
+        .technic-beam {
+            position: relative;
+            background: #0056b3;
+            /* Classic Technic Blue */
+            border-radius: 2px;
+            /* Flex restored */
+            display: flex;
+            align-items: flex-start;
+            /* Align content to top */
+            padding: 9px 35px 18px 5px;
+            /* Ratio 1:3.5:2 -> Top 9px, Right 35px, Hole 30px, Bottom 18px */
+            box-shadow:
+                inset 0 2px 5px rgba(255, 255, 255, 0.2),
+                inset 0 -2px 5px rgba(0, 0, 0, 0.3),
+                0 10px 20px rgba(0, 0, 0, 0.4);
+            border: 1px solid #004494;
+        }
+
+        /* Studs on top of beam */
+        .beam-studs {
+            position: absolute;
+            top: -10px;
+            left: 20px;
+            display: flex;
+            gap: 0;
+            z-index: 1;
+        }
+
+        .stud {
+            width: 30px;
+            height: 10px;
+            background: linear-gradient(180deg, #0077d4 0%, #0056b3 50%, #004494 100%);
+            border-radius: 4px 4px 0 0;
+            margin-right: 20px;
+            /* STUD_SPACING - stud_width */
+            box-shadow:
+                inset 0 2px 3px rgba(255, 255, 255, 0.3),
+                0 -1px 2px rgba(0, 0, 0, 0.2);
+            border: 1px solid #004494;
+            border-bottom: none;
+        }
+
+        .stud:last-child {
+            margin-right: 0;
+        }
+
+        .beam-holes {
+            display: flex;
+            position: relative;
+        }
+
+        .beam-hole {
+            width: 30px;
+            height: 30px;
+            background: #ffffff;
+            border-radius: 50%;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+            border: 2px solid #e2e8f0;
+            z-index: 2;
+        }
+
+        .beam-hole:hover {
+            border-color: #0066cc;
+            background: #e0f2fe;
+        }
+
+        .beam-hole.has-gear {
+            background: #1e293b;
+            border-color: transparent;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+        }
+
+        .beam-hole.active {
+            border-color: #0066cc;
+            background: rgba(0, 102, 204, 0.3);
+        }
+
+        .beam-hole.invalid {
+            border-color: #dc2626;
+            background: rgba(220, 38, 38, 0.2);
+        }
+
+        .beam-hole.has-motor {
+            background: #f59e0b;
+            border-color: #d97706;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 8px rgba(245, 158, 11, 0.5);
+        }
+
+        .beam-hole::after {
+            content: attr(data-index);
+            position: absolute;
+            top: 55px;
+            /* Below the beam (Height ~57px) */
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.75rem;
+            color: #333;
+            /* Darker color */
+            opacity: 0.9;
+            display: block;
+            /* Always show numbers */
+            font-weight: bold;
+        }
+
+        /* Show numbers only on the last beam */
+        .beam-wrapper:last-child .beam-hole::after {
+            display: block;
+        }
+
+        /* Delete mode cursor */
+        .delete-mode .beam-hole {
+            cursor: crosshair;
+        }
+
+        .delete-mode .beam-hole:hover {
+            border-color: #dc2626;
+            background: rgba(220, 38, 38, 0.2);
+        }
+
+        /* Placed Gear on Beam */
+        .gear-on-beam {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            /* Center on the hole */
+            pointer-events: none;
+            /* Let clicks pass to the remove button or hole */
+            transition: transform 0.1s linear;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            /* Ensure on top of beam */
+        }
+
+        .gear-remove-btn {
+            position: absolute;
+            top: -20px;
+            /* Position relative to the hole center */
+            right: -20px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: auto;
+            z-index: 100;
+        }
+
+        .beam-hole:hover .gear-remove-btn,
+        .gear-on-beam:hover+.gear-remove-btn {
+            /* Tricky to target, easier if button is inside hole */
+            opacity: 1;
+        }
+
+        /* Make the gear visually partially transparent when hovering the hole to see underlying structure optional */
+
+        /* Connection Lines */
+        .connection-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .connection-indicator {
+            position: absolute;
+            height: 6px;
+            background: #2ecc71;
+            top: 50%;
+            transform: translateY(-50%);
+            border-radius: 3px;
+            transition: all 0.3s;
+            opacity: 0.7;
+        }
+
+        .connection-indicator.error {
+            background: #e74c3c;
+            height: 8px;
+            animation: pulse 1s infinite;
+            z-index: 6;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.4;
+            }
+
+            50% {
+                opacity: 0.8;
+            }
+
+            100% {
+                opacity: 0.4;
+            }
+        }
+
+        /* Info Panel */
+        .info-panel {
+            margin-top: 20px;
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 12px;
+            width: 100%;
+            border: 1px solid #e2e8f0;
+        }
+
+        .info-text {
+            color: #475569;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .info-text strong {
+            color: #1e293b;
+        }
+
+        /* Simulation Stats Panel */
+        .simulation-stats {
+            width: 100%;
+            margin-top: 15px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 15px;
+            display: none;
+        }
+
+        .simulation-stats.active {
+            display: block;
+        }
+
+        .stats-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #0066cc;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stats-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .gear-stat-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 8px;
+            min-width: 125px;
+            flex: 0 1 auto;
+        }
+
+        .gear-stat-card.driver {
+            border-color: #0066cc;
+            background: #e0f2fe;
+            /* Light blue for driver when idle */
+            box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+        }
+
+        .gear-stat-card.active-spinning {
+            background: #dcfce7 !important;
+            /* Light green when running */
+            border-color: #4ade80 !important;
+            transition: background-color 0.3s;
+        }
+
+        .gear-stat-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .gear-stat-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .gear-stat-name {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .gear-stat-hole {
+            font-size: 0.7rem;
+            color: #64748b;
+        }
+
+        .gear-stat-values {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .gear-stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+        }
+
+        .gear-stat-label {
+            color: #64748b;
+        }
+
+        .gear-stat-value {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .gear-stat-value.cw {
+            color: #16a34a;
+        }
+
+        .gear-stat-value.ccw {
+            color: #dc2626;
+        }
+
+        .rotation-indicator {
+            font-size: 1rem;
+        }
+
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .gear-palette {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Warning Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            transform: translateY(-20px);
+            transition: transform 0.3s;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 10px;
+        }
+
+        .modal-message {
+            color: #64748b;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .modal-btn {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .modal-btn:hover {
+            background: #0052a3;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Site Header -->
+    <header>
+        <a href="index.html" class="logo">
+            lego.alorak.com
+        </a>
+        <nav>
+            <ul>
+                <li><a href="index.html"><span class="en-content">Home</span><span
+                            class="tr-content">Anasayfa</span></a></li>
+                <li><a href="classic.html">Classic</a></li>
+                <li><a href="technic.html" style="color:var(--lego-red)">Technic</a></li>
+                <li><a href="poweredup.html">Powered Up</a></li>
+            </ul>
+        </nav>
+        <div class="lang-switch">
+            <button class="lang-btn active" onclick="setLang('en')">EN</button>
+            <button class="lang-btn" onclick="setLang('tr')">TR</button>
+        </div>
+    </header>
+
+    <div class="container" style="padding-top: 10px;">
+        <div class="main-grid">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <a href="technic.html"
+                    style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px; text-decoration: none; color: #475569; font-weight: 600; font-size: 0.9rem; padding: 10px; background: #e2e8f0; border-radius: 8px; transition: all 0.2s;"
+                    onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 12H5M12 19l-7-7 7-7" />
+                    </svg>
+                    <span class="en-content">Back to Technic</span><span class="tr-content">Technic'e Dön</span>
+                </a>
+
+                <!-- 1. Beam Count Selector (First) -->
+                <h3 style="font-size: 0.95rem; color: #0066cc; margin-bottom: 10px;"><span
+                        class="en-content">Beams</span><span class="tr-content">Kiriş</span></h3>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px;">
+                    <button class="beam-count-btn active" onclick="setBeamCount(1)" data-count="1">1</button>
+                    <button class="beam-count-btn" onclick="setBeamCount(2)" data-count="2">2</button>
+                    <button class="beam-count-btn" onclick="setBeamCount(3)" data-count="3">3</button>
+                    <button class="beam-count-btn" onclick="setBeamCount(4)" data-count="4">4</button>
+                    <button class="beam-count-btn" onclick="setBeamCount(5)" data-count="5">5</button>
+                </div>
+
+                <!-- Beam Color Selection -->
+                <!-- Kiriş Rengi Label Removed -->
+                <div style="display: flex; gap: 8px; margin-bottom: 20px;">
+                    <button onclick="setBeamColor('blue')"
+                        style="width:24px; height:24px; background:#0055BF; border:2px solid #e2e8f0; border-radius:50%; cursor:pointer; transition: transform 0.2s;"
+                        onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'"
+                        title="Mavi"></button>
+                    <button onclick="setBeamColor('red')"
+                        style="width:24px; height:24px; background:#C91A09; border:2px solid #e2e8f0; border-radius:50%; cursor:pointer; transition: transform 0.2s;"
+                        onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'"
+                        title="Kırmızı"></button>
+                    <button onclick="setBeamColor('yellow')"
+                        style="width:24px; height:24px; background:#F2CD37; border:2px solid #e2e8f0; border-radius:50%; cursor:pointer; transition: transform 0.2s;"
+                        onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'"
+                        title="Sarı"></button>
+                    <button onclick="setBeamColor('green')"
+                        style="width:24px; height:24px; background:#237841; border:2px solid #e2e8f0; border-radius:50%; cursor:pointer; transition: transform 0.2s;"
+                        onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'"
+                        title="Yeşil"></button>
+                    <button onclick="setBeamColor('white')"
+                        style="width:24px; height:24px; background:#FFFFFF; border:2px solid #cbd5e1; border-radius:50%; cursor:pointer; transition: transform 0.2s;"
+                        onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'"
+                        title="Beyaz"></button>
+                    <button onclick="setBeamColor('black')"
+                        style="width:24px; height:24px; background:#1e293b; border:2px solid #e2e8f0; border-radius:50%; cursor:pointer; transition: transform 0.2s;"
+                        onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'"
+                        title="Siyah"></button>
+                </div>
+
+                <!-- 2. Gear Selection -->
+                <div style="padding-top: 15px; border-top: 1px solid #e2e8f0;">
+                    <h3 style="font-size: 0.95rem; color: #0066cc; margin-bottom: 10px;"><span
+                            class="en-content">Gears</span><span class="tr-content">Dişliler</span></h3>
+                    <div class="gear-palette" id="gearPalette">
+                        <!-- Gears injected by JS -->
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="delete-mode-btn" id="deleteModeBtn" onclick="toggleDeleteMode()"
+                            style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path
+                                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                </path>
+                            </svg>
+                            <span class="en-content">Delete Gear</span><span class="tr-content">Dişli Sil</span>
+                        </button>
+                        <!-- Tooth Button Added -->
+                        <button class="delete-mode-btn" id="toothModeBtn" onclick="toggleToothMode()"
+                            style="flex: 1; background-color: #f8fafc; border-color: #cbd5e1; color: #64748b; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px;">
+                            <div id="toothBtnIcon"
+                                style="width: 24px; height: 24px; transition: transform 0.3s; transform-origin: center;">
+                                <svg viewBox="0 0 100 100" width="100%" height="100%" style="overflow:visible">
+                                    <path id="toothBtnPath" d="M38 50 L 50 -65 L 62 50 Z" fill="#94a3b8"
+                                        stroke="#64748b" stroke-width="6" stroke-linejoin="round" />
+                                    <circle id="toothBtnCircle" cx="50" cy="50" r="16" fill="#94a3b8" stroke="#64748b"
+                                        stroke-width="6" />
+                                </svg>
+                            </div>
+                            <span style="font-size: 0.75rem; font-weight:600;">Tooth</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tooth Settings Panel -->
+                <!-- Duplicate Panel Removed -->
+
+                <!-- 3. Motor Placement -->
+                <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+                    <h3 style="font-size: 0.95rem; color: #0066cc; margin-bottom: 10px;">Motor</h3>
+                    <button class="motor-mode-btn" id="motorModeBtn" onclick="toggleMotorMode()">
+                        ⚡ <span class="en-content">Add Motor</span><span class="tr-content">Motor Ekle</span>
+                    </button>
+
+                    <!-- Motor Info (shown when motor is placed) -->
+                    <div id="motorInfo"
+                        style="display: none; margin-top: 10px; padding: 10px; background: #fffbeb; border-radius: 8px; border: 1px solid #f59e0b;">
+                        <div style="font-size: 0.8rem; color: #92400e; margin-bottom: 8px;">
+                            ⚡ Motor: <span id="motorPositionLabel">-</span>
+                        </div>
+
+                        <!-- Motor Direction -->
+                        <!-- Label removed -->
+                        <div style="display: flex; gap: 6px; margin-top: 4px;">
+                            <button class="motor-dir-btn active" id="motorDirCW" onclick="setMotorDirection(1)">
+                                ↻ <span class="en-content">Clockwise</span><span class="tr-content">Saat Yönü</span>
+                            </button>
+                            <button class="motor-dir-btn" id="motorDirCCW" onclick="setMotorDirection(-1)">
+                                ↺ <span class="en-content">Counter-CW</span><span class="tr-content">Ters Yön</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="motorHelpText" style="display: none;"></div>
+
+                    <!-- Speed Control -->
+                    <div style="margin-top: 12px;">
+                        <label style="font-size: 0.8rem; color: #475569;"><span class="en-content">Speed:</span><span
+                                class="tr-content">Dönüş Hızı:</span></label>
+                        <input type="range" id="speedSlider" min="0.1" max="5" step="0.1" value="1"
+                            style="width: 100%; cursor: pointer; margin-top: 5px;" onchange="updateSpeedLabel()">
+                        <div
+                            style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">
+                            <span>0.1x</span>
+                            <span id="speedLabel" style="font-weight: bold; color: #0066cc;">1x</span>
+                            <span>5x</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tooth Settings Panel (Moved below Motor) -->
+                <div id="toothSettingsPanel"
+                    style="display: none; margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+                    <h3 style="font-size: 0.95rem; color: #d97706; margin-bottom: 10px;"><span class="en-content">Tooth
+                            Direction</span><span class="tr-content">Tooth (Gösterge) Yönü</span></h3>
+                    <div
+                        style="display: flex; align-items: center; gap: 10px; background: #fff7ed; padding: 10px; border-radius: 8px; border: 1px solid #ffedd5;">
+                        <span style="font-size: 0.9rem; font-weight: bold; color: #9a3412; min-width: 40px;"
+                            id="pointerAngleDisplay">0°</span>
+                        <button class="btn" onclick="rotatePointerSetting()"
+                            style="flex: 1; padding: 6px; font-size: 0.8rem; background: #fff; border: 1px solid #fdba74; color: #c2410c; cursor: pointer;">
+                            ↻ +90° <span class="en-content">Rotate</span><span class="tr-content">Çevir</span>
+                        </button>
+                    </div>
+                    <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 8px; margin-bottom: 0;">
+                        <span class="en-content">Select the angle and click on a gear to add.</span><span
+                            class="tr-content">İstediğiniz açıyı seçip dişliye tıklayarak ekleyin.</span>
+                    </p>
+                </div>
+            </aside>
+
+            <!-- Main Canvas -->
+            <main class="canvas-area">
+                <!-- Side View Panel -->
+                <div class="side-view-panel">
+                    <div class="side-view-header">
+                        <span><span class="en-content">Top View (Section)</span><span class="tr-content">Üstten Görünüm
+                                (Kesit)</span></span>
+                        <span style="font-size: 0.7rem; color: #94a3b8;">Z-Axis</span>
+                    </div>
+                    <div class="side-view-content" id="sideViewContainer">
+                        <!-- SVG Injected Here -->
+                    </div>
+                </div>
+
+                <div class="simulation-container" id="simContainer">
+                    <!-- Beam renders here -->
+                </div>
+
+                <div class="bottom-panel">
+                    <div class="controls">
+                        <button class="btn" id="toggleRun" style="display: flex; align-items: center; gap: 8px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                fill="currentColor" stroke="none" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                            <span class="en-content">Run</span><span class="tr-content">Çalıştır</span>
+                        </button>
+                        <button class="btn" id="runOneTurn"
+                            style="display: flex; align-items: center; gap: 8px; background: #059669;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M21 12a9 9 0 11-6.219-8.56"></path>
+                                <polyline points="21 3 21 9 15 9"></polyline>
+                            </svg>
+                            <span class="en-content">1 Turn</span><span class="tr-content">1 Tur</span>
+                        </button>
+                        <button class="btn btn-danger" id="clearBoard"
+                            style="display: flex; align-items: center; gap: 8px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path
+                                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                </path>
+                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                            <span class="en-content">Clear</span><span class="tr-content">Temizle</span>
+                        </button>
+                    </div>
+
+                    <!-- Simulation Stats Panel (Moved here) -->
+                    <div class="simulation-stats" id="simulationStats">
+                        <div class="stats-title">
+                            📊 <span class="en-content">Rotation Info</span><span class="tr-content">Dönüş
+                                Bilgileri</span>
+                        </div>
+                        <div class="stats-grid" id="statsGrid">
+                            <!-- Gear stats will be injected here -->
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+
+        // 1 Stud (Hole center-to-center spacing) in pixels
+        const STUD_SPACING = 50;
+
+        // Gear Definitions
+        // radius: The pitch radius in "studs".
+        // Diameter = 2 * radius.
+        // Example: 8T has 0.5 stud radius (1 stud diameter). Fits perfectly with another 8T on adjacent hole (dist 1).
+        const GEARS = [
+            { teeth: 0, radius: 0.5, color: '#FFD706', type: 'bush' }, // Bush (Spacer) - Yellow
+            { teeth: 8, radius: 0.5, color: '#A4A5AF', type: 'spur' },
+            { teeth: 12, radius: 0.75, color: '#0066cc', type: 'bevel' },
+            { teeth: 16, radius: 1.0, color: '#a0a0a0', type: 'spur' },
+            { teeth: 20, radius: 1.25, color: '#e4cd9e', type: 'double' }, // Tan (Updated from image)
+            { teeth: 24, radius: 1.5, color: '#595d60', type: 'spur' },   // Dark Gray
+            { teeth: 28, radius: 1.75, color: '#9ca3af', type: 'double' }, // Light Gray (New Design)
+            { teeth: 36, radius: 2.25, color: '#1a1a1a', type: 'spur' },  // Black
+            { teeth: 40, radius: 2.5, color: '#7f8c8d', type: 'spur' }
+        ];
+
+        // --- STATE ---
+        let selectedGearIndex = null;
+        // 2D board state: boardState[beamIndex][holeIndex]
+        let boardState = [];
+        let isRunning = false;
+        let animationFrameId;
+        let deleteMode = false;
+        let motorMode = false;
+        let beamCount = 1; // Number of beams (1-5)
+        // Motor position: { beamIndex, holeIndex } or null
+        let motorPosition = null;
+        // Motor direction: 1 = clockwise, -1 = counter-clockwise
+        let motorDirection = 1;
+        // Beam Color: blue, red, yellow, green, white, black
+        let beamColor = 'blue';
+        let toothMode = false;
+        let currentPointerAngle = 0;
+
+        // Manual Gear Rotation State (Kinematic Drag)
+        let gearConnectionsMap = {};
+        let isDraggingGear = false;
+        let draggedGearKey = null; // { beamIndex, holeIndex }
+        let lastMouseX = 0;
+
+        // Initialize board state for given beam count
+        function initBoardState() {
+            boardState = [];
+            for (let i = 0; i < 5; i++) { // Max 5 beams
+                boardState.push(new Array(11).fill(null));
+            }
+            motorPosition = null;
+            updateMotorInfoPanel();
+        }
+
+        function setBeamColor(color) {
+            beamColor = color;
+            renderBeam();
+        }
+
+        // --- HELPERS ---
+        function updateStatus(message, isWarning = false) {
+            // Status bar disabled
+        }
+
+        // --- INIT ---
+        function init() {
+            initBoardState();
+            renderPalette();
+            renderBeam();
+            setupEventListeners();
+            updateSpeedLabel(); // Initialize speed label with RPM
+        }
+
+        function setupEventListeners() {
+            document.getElementById('toggleRun').addEventListener('click', toggleSimulation);
+            document.getElementById('runOneTurn').addEventListener('click', runOneTurn);
+            document.getElementById('clearBoard').addEventListener('click', clearBoard);
+
+            // Drag Events (Global)
+            document.addEventListener('mousemove', handleGearDrag);
+            document.addEventListener('mouseup', endGearDrag);
+
+            // Clear highlight when clicking on empty space in simulation container
+            document.getElementById('simContainer').addEventListener('click', function (e) {
+                // Only clear if clicking on background (not on holes, gears, or buttons)
+                if (e.target.classList.contains('simulation-container') ||
+                    e.target.classList.contains('beam-content-area') ||
+                    e.target.classList.contains('technic-beam') ||
+                    e.target.classList.contains('beam-wrapper')) {
+                    if (typeof clearHighlight === 'function') {
+                        clearHighlight();
+                    }
+                    // Reset Modes
+                    if (selectedGearIndex !== null) {
+                        selectedGearIndex = null;
+                        document.querySelectorAll('.gear-option').forEach(el => el.classList.remove('selected'));
+                    }
+                    if (toothMode) toggleToothMode();
+                }
+            });
+        }
+
+        function updateSpeedLabel() {
+            const slider = document.getElementById('speedSlider');
+            const label = document.getElementById('speedLabel');
+            if (slider && label) {
+                const val = parseFloat(slider.value);
+                const rpm = Math.round(val * 300);
+                label.textContent = `${val}x (${rpm} RPM)`;
+            }
+        }
+
+        function updateMotorInfoPanel() {
+            const motorInfo = document.getElementById('motorInfo');
+            const motorHelpText = document.getElementById('motorHelpText');
+            const motorPositionLabel = document.getElementById('motorPositionLabel');
+
+            if (motorPosition) {
+                motorInfo.style.display = 'block';
+                motorHelpText.style.display = 'none';
+                motorPositionLabel.textContent = `Kiriş ${motorPosition.beamIndex + 1}, Delik ${motorPosition.holeIndex + 1}`;
+            } else {
+                motorInfo.style.display = 'none';
+                motorHelpText.style.display = 'block';
+            }
+        }
+
+        function setMotorDirection(dir) {
+            motorDirection = dir;
+
+            // Update button states
+            document.getElementById('motorDirCW').classList.toggle('active', dir === 1);
+            document.getElementById('motorDirCCW').classList.toggle('active', dir === -1);
+        }
+
+        function clearBoard() {
+            document.getElementById('confirmModal').classList.add('active');
+        }
+
+        function closeConfirmModal(event) {
+            if (!event || event.target.id === 'confirmModal' || (event.target.classList && event.target.classList.contains('close-btn'))) {
+                document.getElementById('confirmModal').classList.remove('active');
+            }
+            // For manual close
+            if (!event) document.getElementById('confirmModal').classList.remove('active');
+        }
+
+        function executeClearBoard() {
+            initBoardState();
+            stopSimulation();
+            motorPosition = null;
+            updateMotorInfoPanel();
+            renderBeam();
+            renderSideView();
+            validateAndCalculate();
+            updateStatus(t('allCleared'));
+            renderSimulationStats();
+            document.getElementById('confirmModal').classList.remove('active');
+        }
+
+        function toggleDeleteMode() {
+            deleteMode = !deleteMode;
+            selectedGearIndex = null;
+
+            // Update UI
+            document.querySelectorAll('.gear-option').forEach(el => el.classList.remove('selected'));
+            const btn = document.getElementById('deleteModeBtn');
+            const simContainer = document.getElementById('simContainer');
+
+            const trashIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+
+            if (deleteMode) {
+                btn.classList.add('active');
+                btn.innerHTML = trashIcon + t('deleteGear');
+                simContainer.classList.add('delete-mode');
+                updateStatus(t('deleteMode'));
+            } else {
+                btn.classList.remove('active');
+                btn.innerHTML = trashIcon + t('deleteGear');
+                simContainer.classList.remove('delete-mode');
+                updateStatus('Silme modu kapatıldı.');
+            }
+        }
+
+        function rotatePointerSetting() {
+            currentPointerAngle = (currentPointerAngle + 90) % 360;
+            const display = document.getElementById('pointerAngleDisplay');
+            if (display) display.innerText = currentPointerAngle + '°';
+
+            // Rotate Button Icon
+            const icon = document.getElementById('toothBtnIcon');
+            if (icon) icon.style.transform = `rotate(${currentPointerAngle}deg)`;
+        }
+
+        function toggleToothMode() {
+            toothMode = !toothMode;
+            // Reset other modes
+            if (toothMode) {
+                deleteMode = false;
+                motorMode = false;
+                selectedGearIndex = null;
+            }
+            updateStatus(toothMode ? t('toothMode') : t('toothModeOff'));
+            renderBeam(); // To update UI states
+
+            // Update UI Buttons
+            const btn = document.getElementById('toothModeBtn');
+            const panel = document.getElementById('toothSettingsPanel');
+            const deleteBtn = document.getElementById('deleteModeBtn');
+            const motorBtn = document.getElementById('motorModeBtn');
+            const path = document.getElementById('toothBtnPath');
+            const circle = document.getElementById('toothBtnCircle');
+
+            // Toggle classes
+            if (toothMode) {
+                // Active: Orange
+                btn.style.backgroundColor = '#fff7ed';
+                btn.style.borderColor = '#fdba74';
+                btn.style.color = '#c2410c';
+                btn.classList.add('active');
+                if (path) { path.setAttribute('fill', '#FF7F00'); path.setAttribute('stroke', '#9a3412'); }
+                if (circle) { circle.setAttribute('fill', '#FF7F00'); circle.setAttribute('stroke', '#9a3412'); }
+
+                if (panel) panel.style.display = 'block';
+                if (deleteBtn) deleteBtn.classList.remove('active');
+                if (motorBtn) motorBtn.classList.remove('active');
+
+                // Clear selection visual
+                document.querySelectorAll('.gear-option').forEach(el => el.classList.remove('selected'));
+                document.getElementById('simContainer').classList.remove('delete-mode');
+            } else {
+                // Inactive: Gray
+                btn.style.backgroundColor = '#f8fafc';
+                btn.style.borderColor = '#cbd5e1';
+                btn.style.color = '#64748b';
+                btn.classList.remove('active');
+                if (path) { path.setAttribute('fill', '#94a3b8'); path.setAttribute('stroke', '#64748b'); }
+                if (circle) { circle.setAttribute('fill', '#94a3b8'); circle.setAttribute('stroke', '#64748b'); }
+
+                if (panel) panel.style.display = 'none';
+            }
+        }
+
+
+        function toggleMotorMode() {
+            motorMode = !motorMode;
+            deleteMode = false;
+            selectedGearIndex = null;
+
+            // Update UI
+            document.querySelectorAll('.gear-option').forEach(el => el.classList.remove('selected'));
+            document.getElementById('deleteModeBtn').classList.remove('active');
+            const trashIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+            document.getElementById('deleteModeBtn').innerHTML = trashIcon + t('deleteGear');
+            document.getElementById('simContainer').classList.remove('delete-mode');
+
+            const btn = document.getElementById('motorModeBtn');
+
+            if (motorMode) {
+                btn.classList.add('active');
+                btn.innerHTML = '⚡ Motor Ekle (Aktif)';
+                updateStatus('Motor modu aktif. Motor yerleştirmek istediğiniz deliğe tıklayın.');
+            } else {
+                btn.classList.remove('active');
+                btn.innerHTML = '⚡ Motor Ekle';
+                updateStatus('Motor modu kapatıldı.');
+            }
+        }
+
+        function setBeamCount(count) {
+            beamCount = count;
+
+            // Update button states
+            document.querySelectorAll('.beam-count-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (parseInt(btn.dataset.count) === count) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Resize boardState keeping existing data
+            const newBoardState = [];
+            for (let i = 0; i < count; i++) {
+                if (i < boardState.length) {
+                    newBoardState.push(boardState[i]);
+                } else {
+                    newBoardState.push(new Array(11).fill(null));
+                }
+            }
+            boardState = newBoardState;
+
+            // Check if motor was on a removed beam
+            if (motorPosition && motorPosition.beamIndex >= beamCount) {
+                motorPosition = null;
+                updateMotorInfoPanel();
+            }
+
+            stopSimulation();
+            renderBeam();
+            updateStatus(`${count} kiriş seçildi.`);
+        }
+
+        // --- RENDERING ---
+
+        function renderPalette() {
+            const container = document.getElementById('gearPalette');
+            container.innerHTML = GEARS.map((gear, index) => {
+                return `
+                <div class="gear-option" onclick="selectGear(${index})" id="gearOption_${index}">
+                    ${generateGearIconSVG(gear.teeth, gear.color, gear.radius)}
+                    <span>${gear.type === 'tooth' ? 'Tooth' : (gear.teeth > 0 ? gear.teeth + ' ' + t('teeth') : t('bore'))}</span>
+                </div>
+            `}).join('');
+        }
+
+        function selectGear(index) {
+            // Disable delete mode when selecting a gear
+            if (deleteMode) {
+                deleteMode = false;
+                document.getElementById('deleteModeBtn').classList.remove('active');
+                const trashIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+                document.getElementById('deleteModeBtn').innerHTML = trashIcon + t('deleteGear');
+                document.getElementById('simContainer').classList.remove('delete-mode');
+            }
+
+            selectedGearIndex = index;
+            document.querySelectorAll('.gear-option').forEach(el => el.classList.remove('selected'));
+
+            const option = document.getElementById(`gearOption_${index}`);
+            if (option) option.classList.add('selected');
+
+            // Bush button code removed
+
+            // Toggle Tooth Settings Panel
+            const toothPanel = document.getElementById('toothSettingsPanel');
+            if (toothPanel) {
+                toothPanel.style.display = (GEARS[index].type === 'tooth') ? 'block' : 'none';
+            }
+
+            if (GEARS[index].type === 'bush') {
+                updateStatus(t('selectBore'));
+            } else {
+                updateStatus(t('selectGear', GEARS[index].teeth));
+            }
+        }
+
+        // Global State for Beam Tab
+        let activeBeamIndex = 0;
+
+        function switchBeam(index) {
+            activeBeamIndex = index;
+            renderBeam();
+        }
+
+        function renderBeam() {
+            const container = document.getElementById('simContainer');
+
+            // Inject CSS for Tabs (One time check)
+            if (!document.getElementById('tabStyles')) {
+                const style = document.createElement('style');
+                style.id = 'tabStyles';
+                style.textContent = `
+                    .tabs-bar { display: flex; gap: 4px; margin-bottom: 0; padding-left: 10px; border-bottom: 1px solid #cbd5e1; }
+                    .beam-tab { padding: 8px 20px; background: #f1f5f9; border-radius: 8px 8px 0 0; cursor: pointer; color: #64748b; font-weight: 500; font-size: 0.9rem; border: 1px solid #e2e8f0; border-bottom: none; margin-bottom: -1px; transition: all 0.2s; }
+                    .beam-tab:hover { background: #e2e8f0; }
+                    .beam-tab.active { background: #ffffff; color: #0066cc; border-color: #cbd5e1; border-bottom-color: #fff; z-index: 10; font-weight: bold; }
+                    .beam-content-area { position: relative; z-index: 5; padding-top: 20px; min-height: 180px; }
+                `;
+                document.head.appendChild(style);
+            }
+
+            // Color Map Logic
+            const colorMap = {
+                'blue': '#0055BF',
+                'red': '#C91A09',
+                'yellow': '#F2CD37',
+                'green': '#237841',
+                'white': '#FFFFFF',
+                'black': '#1e293b'
+            };
+            const bgColor = colorMap[beamColor] || '#0055BF';
+
+            // Determine border style based on color
+            let borderStyle = '1px solid rgba(0,0,0,0.1)';
+            if (beamColor === 'blue') borderStyle = '1px solid #004494';
+            if (beamColor === 'white') borderStyle = '1px solid #cbd5e1';
+            if (beamColor === 'black') borderStyle = '1px solid #0f172a';
+
+            let html = '';
+
+            // Remove Tabs Bar
+
+            // Render Beam Content
+            html += '<div class="beam-content-area" style="padding-top: 5px;">';
+
+            for (let beamIndex = 0; beamIndex < beamCount; beamIndex++) {
+                // Render ALL beams (List View)
+
+                // Generate studs HTML (Enable for active beam or all? Top beam usually has studs)
+                // In classic list view, usually top beam had studs.
+                // Let's stick to step 1682 logic: if (beamIndex === 0) studs.
+                // Or maybe all beams have studs visually?
+                // User said "eskisi gibi". Eskiden sadece en üstte vardı (Step 1682 Line 1218).
+
+                let studsHtml = '';
+                if (beamIndex === 0) {
+                    for (let i = 0; i < 12; i++) {
+                        studsHtml += `<div class="stud" style="background: ${bgColor} !important; border-color: rgba(0,0,0,0.2);"></div>`;
+                    }
+                }
+
+                // Build holes HTML for this beam
+                let holesHtml = '';
+                let gearsHtml = '';
+                let removeBtnsHtml = '';
+
+                // Get this beam's gears
+                const beamGears = boardState[beamIndex] || [];
+
+                // 11 Holes for Technic Brick
+                for (let holeIndex = 0; holeIndex < 11; holeIndex++) {
+                    const gear = beamGears[holeIndex];
+
+                    // Check if this hole has a motor
+                    const hasMotor = motorPosition &&
+                        motorPosition.beamIndex === beamIndex &&
+                        motorPosition.holeIndex === holeIndex;
+
+                    // Render Hole
+                    const hasGearClass = gear ? 'has-gear' : '';
+                    const hasMotorClass = hasMotor ? 'has-motor' : '';
+                    holesHtml += `
+                        <div class="beam-hole ${hasGearClass} ${hasMotorClass}" 
+                             onclick="handleHoleClick(${beamIndex}, ${holeIndex})" 
+                             data-index="${holeIndex + 1}"
+                             style="margin-right: ${holeIndex < 10 ? (STUD_SPACING - 30) + 'px' : '0'};">
+                        </div>
+                    `;
+
+                    // Render Gear Stack (Multi-Layer)
+                    if (gear) {
+                        let current = gear;
+                        let layerIdx = 0;
+                        while (current) {
+                            // Visual scale factor for gears (1.1 = 10% larger visually)
+                            const VISUAL_SCALE = 1.1;
+                            const pixelDiameter = (current.radius * 2) * STUD_SPACING * VISUAL_SCALE;
+                            const centerX = holeIndex * STUD_SPACING;
+
+                            gearsHtml += `
+                                <div class="gear-on-beam" id="gear_visual_${beamIndex}_${holeIndex}_L${layerIdx}" 
+                                    onmousedown="startGearDrag(event, ${beamIndex}, ${holeIndex})"
+                                    onclick="handleHoleClick(${beamIndex}, ${holeIndex})"
+                                    style="width:${pixelDiameter}px; height:${pixelDiameter}px; 
+                                           left: ${centerX + 15}px;
+                                           z-index: ${10 + layerIdx};
+                                           pointer-events: auto;
+                                           transform: translate(-50%, -50%) rotate(${current.angle || 0}deg);">
+                                    ${(current.type === 'bush') ? generateBushSVG(current.color, pixelDiameter, hasMotor) : generateDetailedGearSVG(current.teeth, current.color, pixelDiameter, hasMotor)}
+                                </div>
+                            `;
+
+                            // Pointer Overlays (Tooth) - Support Multiple
+                            const pointers = current.pointers || (current.hasPointer ? [0] : []);
+                            pointers.forEach((pOffset, pIdx) => {
+                                const ptrSize = 100;
+                                gearsHtml += `
+                                    <div class="gear-on-beam pointer-overlay" 
+                                        id="pointer_visual_${beamIndex}_${holeIndex}_L${layerIdx}_P${pIdx}"
+                                        style="width:${ptrSize}px; height:${ptrSize}px; 
+                                               left: ${centerX + 15}px;
+                                               z-index: ${20 + layerIdx};
+                                               pointer-events: none;
+                                               transform: translate(-50%, -50%) rotate(${(current.angle || 0) + pOffset}deg);">
+                                        ${generateVisualPointerSVG('#FF7F00', ptrSize, false)}
+                                    </div>
+                                `;
+                            });
+                            current = current.nextLayer;
+                            layerIdx++;
+                        }
+
+                        const centerX = holeIndex * STUD_SPACING;
+                        removeBtnsHtml += `
+                            <button class="gear-remove-btn" 
+                                    onclick="removeGear(${beamIndex}, ${holeIndex})"
+                                    style="left: ${centerX + 15}px; top: -15px; transform: translateX(-50%); z-index: 30;">
+                                ×
+                            </button>
+                        `;
+                    }
+                }
+
+                // Append Beam HTML (No wrapper display:none needed, we loop only active)
+                html += `
+                    <div class="beam-wrapper">
+                        <div class="beam-studs" style="left: 10px !important;">${studsHtml}</div>
+                        <div class="technic-beam" style="margin-top: 0; background-color: ${bgColor} !important; border: ${borderStyle} !important;">
+                            <div class="connection-layer" id="connectionLayer_${beamIndex}"></div>
+                            <!-- Holes in normal flow (relative) -->
+                            <div class="beam-holes" style="position:relative; z-index:2; margin-left: 30px;">
+                                ${holesHtml}
+                            </div>
+
+                            <!-- Gears positioned at hole center -->
+                            <div style="position: absolute; top: 24px; left: 34px; width: 100%; height: 0; z-index: 10;">
+                                ${gearsHtml}
+                            </div>
+                            <!-- Hit area for removing gears -->
+                            <div style="position: absolute; top: 0; left: 34px; width: 100%; height: 100%; z-index: 100; pointer-events:none;">
+                                ${removeBtnsHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            html += '</div>'; // End content area
+
+            container.innerHTML = html;
+            // Re-draw connections
+            validateAndCalculate();
+        }
+
+        // Generic Icon SVG (Simplified)
+        function generateGearIconSVG(teeth, color, radius = 1) {
+            // Fixed container size
+            const containerSize = 50;
+            const maxRadius = 2.5; // 40T
+            // Calculate scale factor: Min 0.5 (for smallest), Max 1.0 (for largest)
+            // 8T (0.5r) -> 0.6
+            // 40T (2.5r) -> 1.0
+            const scale = 0.5 + (radius / maxRadius) * 0.5;
+
+            // We render the SVG at full 50px size, but scale it down visually
+            return `<div class="gear-icon-wrapper" style="width:${containerSize}px; height:${containerSize}px; display:flex; align-items:center; justify-content:center;">
+                <div style="width:${containerSize}px; height:${containerSize}px; transform: scale(${scale}); transform-origin: center; display:flex; align-items:center; justify-content:center;">
+                    ${generateDetailedGearSVG(teeth, color, containerSize, false)}
+                </div>
+            </div>`;
+        }
+
+        // Helper to generate consistent axle size regardless of gear scale
+        function generateDynamicAxlePath(gearPixelSize, isMotor) {
+            const targetSize = 28; // Target pixel size (approx 30px pin hole)
+            const unitTotal = (targetSize * 100) / gearPixelSize; // Convert to SVG units (0-100)
+            const half = unitTotal / 2;
+            const thick = unitTotal * 0.38; // Thickness ratio
+            const halfThick = thick / 2;
+
+            const c = 50;
+            const x1 = c - half;
+            const y1 = c - halfThick;
+            const x2 = c - halfThick;
+            const y2 = c - half;
+
+            return `<path d="M${x1} ${y1} h${unitTotal} v${thick} h-${unitTotal} z M${x2} ${y2} h${thick} v${unitTotal} h-${thick} z" fill="${isMotor ? '#FFD700' : '#EF4444'}"/>`;
+        }
+
+        // Bush SVG
+        function generateBushSVG(color, size, isMotor) {
+            const darker = adjustColor(color, -25);
+            const lighter = adjustColor(color, 25);
+            return `
+             <svg width="100%" height="100%" viewBox="0 0 100 100" style="overflow:visible">
+                  <!-- Main Body -->
+                  <circle cx="50" cy="50" r="44" fill="${color}" stroke="${darker}" stroke-width="1.5"/>
+                  
+                  <!-- Inner depressed area -->
+                  <circle cx="50" cy="50" r="28" fill="${lighter}" stroke="${darker}" stroke-width="1"/>
+                  
+                  <!-- 4 Tabs simulating the cross hole structure -->
+                  <path d="M50 22 v14 M50 78 v-14 M22 50 h14 M78 50 h-14" stroke="${darker}" stroke-width="6" stroke-linecap="round"/>
+                  
+                  ${generateDynamicAxlePath(size, isMotor)}
+             </svg>`;
+        }
+
+        // Visual Pointer (Tooth) SVG - Updated
+        function generateVisualPointerSVG(color, size, isMotor) {
+            const darker = adjustColor(color, -25);
+            return `
+             <svg width="100%" height="100%" viewBox="0 0 100 100" style="overflow:visible">
+                  <!-- Pointer Shape pointing UP (Long & Tapered) -->
+                  <!-- Tip: 50, -65 (Matches approx 36T radius). Base: 50, 50. -->
+                  <path d="M38 50 L 50 -65 L 62 50 Z" fill="${color}" stroke="${darker}" stroke-width="1.5" stroke-linejoin="round"/>
+                  <!-- Hub Circle -->
+                  <circle cx="50" cy="50" r="16" fill="${color}" stroke="${darker}" stroke-width="1.5"/>
+                  ${generateDynamicAxlePath(size, isMotor)}
+             </svg>`;
+        }
+
+        // Detailed Gear SVG for Simulation
+        function generateDetailedGearSVG(teeth, color, size, isMotor = false) {
+            if (teeth === 0) return generateBushSVG(color, size, isMotor);
+            if (teeth === 1) return generateVisualPointerSVG(color, size, isMotor);
+            // Special design for 40T gear (Grid/Hole pattern)
+            if (teeth === 40) {
+                return generate40TGearSVG(teeth, color, size, isMotor);
+            }
+            // Special design for 24T gear (Custom)
+            if (teeth === 24) {
+                return generate24TGearSVG(teeth, color, size, isMotor);
+            }
+            // Special design for 28T gear (Double Bevel - New)
+            if (teeth === 28) {
+                return generate28TGearSVG(teeth, color, size, isMotor);
+            }
+            // Special design for 36T gear (Black with complex inner structure)
+            if (teeth === 36) {
+                return generate36TGearSVG(teeth, color, size, isMotor);
+            }
+            // Special design for 20T gear (Double Bevel Style)
+            if (teeth === 20) {
+                return generate20TGearSVG(teeth, color, size, isMotor);
+            }
+            // Special design for 12T gear (Bevel Style - Blue)
+            if (teeth === 12) {
+                return generate12TGearSVG(teeth, color, size, isMotor);
+            }
+            // Special design for 16T gear (Gray with 4 holes)
+            if (teeth === 16) {
+                return generate16TGearSVG(teeth, color, size, isMotor);
+            }
+            // Special design for 8T gear (Type 2)
+            if (teeth === 8) {
+                return generate8TGearSVG(teeth, color, size, isMotor);
+            }
+
+            const cx = 50;
+            const cy = 50;
+
+            // Generate darker shade for depth
+            const darkerColor = adjustColor(color, -30);
+            const lighterColor = adjustColor(color, 30);
+
+            // Motor axle color (yellow if motor, else dark gray)
+            const axleColor = isMotor ? '#f59e0b' : '#333';
+            const axleStroke = isMotor ? '#d97706' : '#222';
+
+            return `
+            <svg width="100%" height="100%" viewBox="0 0 100 100" style="overflow:visible">
+                <!-- Main Body (solid fill) -->
+                <circle cx="50" cy="50" r="43" fill="${color}" stroke="${darkerColor}" stroke-width="2"/>
+                
+                <!-- Teeth Ring -->
+                <circle cx="50" cy="50" r="48" fill="none" stroke="${color}" stroke-width="9" stroke-dasharray="4 ${(2 * Math.PI * 48) / teeth - 4}" />
+                <circle cx="50" cy="50" r="48" fill="none" stroke="${darkerColor}" stroke-width="1" stroke-dasharray="4 ${(2 * Math.PI * 48) / teeth - 4}" />
+                
+                <!-- Inner ring detail -->
+                <circle cx="50" cy="50" r="30" fill="${lighterColor}" stroke="${darkerColor}" stroke-width="1"/>
+                
+                <!-- Center Axle (Plus Shape) -->
+                <!-- Center Axle (Plus Shape) - Dynamic Size -->
+                ${generateDynamicAxlePath(size, isMotor)}
+            </svg>`;
+        }
+
+        // Special SVG generator for 12T Gear (Bevel Style - Blue)
+        function generate12TGearSVG(teeth, color, size, isMotor) {
+            const darkerColor = adjustColor(color, -30);
+            const lighterColor = adjustColor(color, 20);
+
+            // Path Data for 12T with pointed teeth
+            let pathD = "";
+            const numTeeth = 12;
+            const cx = 50, cy = 50;
+            const rBase = 36;
+            const rTip = 52;  // Slightly longer teeth
+            const rad = Math.PI / 180;
+            const toothBaseSpan = 20; // Degrees - wider base
+            const toothTipSpan = 10;  // Wider tip for trapezoid shape
+
+            for (let i = 0; i < numTeeth; i++) {
+                const angle = (i * 360) / numTeeth;
+
+                const aBaseRight = angle - toothBaseSpan / 2;
+                const aBaseLeft = angle + toothBaseSpan / 2;
+                const aTipCenter = angle;
+
+                const xBaseR = cx + rBase * Math.cos(aBaseRight * rad);
+                const yBaseR = cy + rBase * Math.sin(aBaseRight * rad);
+                // Trapezoid tooth (flat top, not pointed)
+                const xTipR = cx + rTip * Math.cos((angle - toothTipSpan / 2) * rad);
+                const yTipR = cy + rTip * Math.sin((angle - toothTipSpan / 2) * rad);
+                const xTipL = cx + rTip * Math.cos((angle + toothTipSpan / 2) * rad);
+                const yTipL = cy + rTip * Math.sin((angle + toothTipSpan / 2) * rad);
+                const xBaseL = cx + rBase * Math.cos(aBaseLeft * rad);
+                const yBaseL = cy + rBase * Math.sin(aBaseLeft * rad);
+
+                if (i === 0) {
+                    pathD += `M ${xBaseR} ${yBaseR}`;
+                } else {
+                    pathD += ` A ${rBase} ${rBase} 0 0 1 ${xBaseR} ${yBaseR}`;
+                }
+
+                // Draw trapezoidal tooth
+                pathD += ` L ${xTipR} ${yTipR}`;
+                pathD += ` L ${xTipL} ${yTipL}`;
+                pathD += ` L ${xBaseL} ${yBaseL}`;
+            }
+
+            // Close loop
+            const xBaseRFirst = cx + rBase * Math.cos((-toothBaseSpan / 2) * rad);
+            const yBaseRFirst = cy + rBase * Math.sin((-toothBaseSpan / 2) * rad);
+            pathD += ` A ${rBase} ${rBase} 0 0 1 ${xBaseRFirst} ${yBaseRFirst}`;
+            pathD += " Z";
+
+            return `
+            <svg width="100%" height="100%" viewBox="-10 -10 120 120" style="overflow:visible">
+                <!-- Main Gear Body with Pointed Teeth -->
+                <path d="${pathD}" fill="${color}" stroke="${darkerColor}" stroke-width="1.5" stroke-linejoin="round"/>
+                
+                <!-- Inner Ring for depth -->
+                <circle cx="50" cy="50" r="24" fill="${lighterColor}" stroke="${darkerColor}" stroke-width="1"/>
+                
+                <!-- Center Hub -->
+                <circle cx="50" cy="50" r="14" fill="${color}" stroke="${darkerColor}" stroke-width="1"/>
+                
+                <!-- Center Axle (Plus Shape) - Dynamic Size -->
+                ${generateDynamicAxlePath(size, isMotor)}
+            </svg>`;
+        }
+
+        // Special SVG generator for 16T Gear (Gray with 4 holes)
+        function generate16TGearSVG(teeth, color, size, isMotor) {
+            const darkerColor = adjustColor(color, -30);
+            const lighterColor = adjustColor(color, 15);
+
+            // Path Data for 16T with trapezoid teeth
+            let pathD = "";
+            const numTeeth = 16;
+            const cx = 50, cy = 50;
+            const rBase = 40;  // Larger body radius
+            const rTip = 54;   // Slightly larger tip
+            const rad = Math.PI / 180;
+            const toothBaseSpan = 14; // Degrees
+            const toothTipSpan = 7;   // Narrower tip for trapezoid
+
+            for (let i = 0; i < numTeeth; i++) {
+                const angle = (i * 360) / numTeeth;
+
+                const aBaseRight = angle - toothBaseSpan / 2;
+                const aBaseLeft = angle + toothBaseSpan / 2;
+
+                const xBaseR = cx + rBase * Math.cos(aBaseRight * rad);
+                const yBaseR = cy + rBase * Math.sin(aBaseRight * rad);
+                const xTipR = cx + rTip * Math.cos((angle - toothTipSpan / 2) * rad);
+                const yTipR = cy + rTip * Math.sin((angle - toothTipSpan / 2) * rad);
+                const xTipL = cx + rTip * Math.cos((angle + toothTipSpan / 2) * rad);
+                const yTipL = cy + rTip * Math.sin((angle + toothTipSpan / 2) * rad);
+                const xBaseL = cx + rBase * Math.cos(aBaseLeft * rad);
+                const yBaseL = cy + rBase * Math.sin(aBaseLeft * rad);
+
+                if (i === 0) {
+                    pathD += `M ${xBaseR} ${yBaseR}`;
+                } else {
+                    pathD += ` A ${rBase} ${rBase} 0 0 1 ${xBaseR} ${yBaseR}`;
+                }
+
+                // Trapezoid tooth
+                pathD += ` L ${xTipR} ${yTipR}`;
+                pathD += ` L ${xTipL} ${yTipL}`;
+                pathD += ` L ${xBaseL} ${yBaseL}`;
+            }
+
+            // Close loop
+            const xBaseRFirst = cx + rBase * Math.cos((-toothBaseSpan / 2) * rad);
+            const yBaseRFirst = cy + rBase * Math.sin((-toothBaseSpan / 2) * rad);
+            pathD += ` A ${rBase} ${rBase} 0 0 1 ${xBaseRFirst} ${yBaseRFirst}`;
+            pathD += " Z";
+
+            // Hole positions (4 holes at 45, 135, 225, 315 degrees)
+            const holeRadius = 7;
+            const holeDistance = 22;
+            const holeAngles = [45, 135, 225, 315];
+            const holePositions = holeAngles.map(a => ({
+                x: cx + holeDistance * Math.cos(a * rad),
+                y: cy + holeDistance * Math.sin(a * rad)
+            }));
+
+            const maskId = "mask_16t_holes";
+
+            return `
+            <svg width="100%" height="100%" viewBox="-10 -10 120 120" style="overflow:visible">
+                <defs>
+                    <mask id="${maskId}">
+                        <rect x="-10" y="-10" width="120" height="120" fill="white"/>
+                        <!-- 4 Holes -->
+                        <circle cx="${holePositions[0].x}" cy="${holePositions[0].y}" r="${holeRadius}" fill="black"/>
+                        <circle cx="${holePositions[1].x}" cy="${holePositions[1].y}" r="${holeRadius}" fill="black"/>
+                        <circle cx="${holePositions[2].x}" cy="${holePositions[2].y}" r="${holeRadius}" fill="black"/>
+                        <circle cx="${holePositions[3].x}" cy="${holePositions[3].y}" r="${holeRadius}" fill="black"/>
+                    </mask>
+                </defs>
+                
+                <!-- Main Gear Body with Teeth (Masked for holes) -->
+                <path d="${pathD}" fill="${color}" stroke="${darkerColor}" stroke-width="1.5" stroke-linejoin="round" mask="url(#${maskId})"/>
+                
+                <!-- Inner Ring (also masked) -->
+                <circle cx="50" cy="50" r="26" fill="none" stroke="${darkerColor}" stroke-width="4" opacity="0.4" mask="url(#${maskId})"/>
+                
+                <!-- Hole Borders -->
+                <circle cx="${holePositions[0].x}" cy="${holePositions[0].y}" r="${holeRadius}" fill="none" stroke="${darkerColor}" stroke-width="1.5"/>
+                <circle cx="${holePositions[1].x}" cy="${holePositions[1].y}" r="${holeRadius}" fill="none" stroke="${darkerColor}" stroke-width="1.5"/>
+                <circle cx="${holePositions[2].x}" cy="${holePositions[2].y}" r="${holeRadius}" fill="none" stroke="${darkerColor}" stroke-width="1.5"/>
+                <circle cx="${holePositions[3].x}" cy="${holePositions[3].y}" r="${holeRadius}" fill="none" stroke="${darkerColor}" stroke-width="1.5"/>
+                
+                <!-- Center Hub -->
+                <circle cx="50" cy="50" r="14" fill="${lighterColor}" stroke="${darkerColor}" stroke-width="1"/>
+                
+                <!-- Center Axle (Plus Shape) - Dynamic Size -->
+                ${generateDynamicAxlePath(size, isMotor)}
+            </svg>`;
+        }
+
+        // Special SVG generator for 36T Gear (Black with 4 holes)
+        function generate36TGearSVG(teeth, color, size, isMotor) {
+            const darkerColor = adjustColor(color, -20);
+            const lighterColor = adjustColor(color, 30);
+
+            // Path Data for 36T with trapezoid teeth
+            let pathD = "";
+            const numTeeth = 36;
+            const cx = 50, cy = 50;
+            const rBase = 46;  // Larger body
+            const rTip = 56;   // Longer teeth for meshing with 12T
+            const rad = Math.PI / 180;
+            const toothBaseSpan = 6;  // Degrees
+            const toothTipSpan = 3;   // Narrower tip
+
+            for (let i = 0; i < numTeeth; i++) {
+                const angle = (i * 360) / numTeeth;
+
+                const aBaseRight = angle - toothBaseSpan / 2;
+                const aBaseLeft = angle + toothBaseSpan / 2;
+
+                const xBaseR = cx + rBase * Math.cos(aBaseRight * rad);
+                const yBaseR = cy + rBase * Math.sin(aBaseRight * rad);
+                const xTipR = cx + rTip * Math.cos((angle - toothTipSpan / 2) * rad);
+                const yTipR = cy + rTip * Math.sin((angle - toothTipSpan / 2) * rad);
+                const xTipL = cx + rTip * Math.cos((angle + toothTipSpan / 2) * rad);
+                const yTipL = cy + rTip * Math.sin((angle + toothTipSpan / 2) * rad);
+                const xBaseL = cx + rBase * Math.cos(aBaseLeft * rad);
+                const yBaseL = cy + rBase * Math.sin(aBaseLeft * rad);
+
+                if (i === 0) {
+                    pathD += `M ${xBaseR} ${yBaseR}`;
+                } else {
+                    pathD += ` A ${rBase} ${rBase} 0 0 1 ${xBaseR} ${yBaseR}`;
+                }
+
+                pathD += ` L ${xTipR} ${yTipR}`;
+                pathD += ` L ${xTipL} ${yTipL}`;
+                pathD += ` L ${xBaseL} ${yBaseL}`;
+            }
+
+            // Close loop
+            const xBaseRFirst = cx + rBase * Math.cos((-toothBaseSpan / 2) * rad);
+            const yBaseRFirst = cy + rBase * Math.sin((-toothBaseSpan / 2) * rad);
+            pathD += ` A ${rBase} ${rBase} 0 0 1 ${xBaseRFirst} ${yBaseRFirst}`;
+            pathD += " Z";
+
+            // Hole positions: 2 round (45°, 225°) and 2 plus-shaped (135°, 315°)
+            const holeRadius = 9;
+            const holeDistance = 30;
+
+            // Round holes at 45° and 225° (left and right)
+            const roundHole1 = { x: cx + holeDistance * Math.cos(45 * rad), y: cy + holeDistance * Math.sin(45 * rad) };
+            const roundHole2 = { x: cx + holeDistance * Math.cos(225 * rad), y: cy + holeDistance * Math.sin(225 * rad) };
+
+            // Plus holes at 135° and 315° (top and bottom)
+            const plusHole1 = { x: cx + holeDistance * Math.cos(135 * rad), y: cy + holeDistance * Math.sin(135 * rad) };
+            const plusHole2 = { x: cx + holeDistance * Math.cos(315 * rad), y: cy + holeDistance * Math.sin(315 * rad) };
+
+            const maskId = "mask_36t_holes";
+            const plusW = 12, plusH = 4; // Plus shape dimensions
+
+            return `
+            <svg width="100%" height="100%" viewBox="-10 -10 120 120" style="overflow:visible">
+                <defs>
+                    <mask id="${maskId}">
+                        <rect x="-10" y="-10" width="120" height="120" fill="white"/>
+                        <!-- 2 Round Holes -->
+                        <circle cx="${roundHole1.x}" cy="${roundHole1.y}" r="${holeRadius}" fill="black"/>
+                        <circle cx="${roundHole2.x}" cy="${roundHole2.y}" r="${holeRadius}" fill="black"/>
+                        <!-- 2 Plus-shaped Holes -->
+                        <rect x="${plusHole1.x - plusW / 2}" y="${plusHole1.y - plusH / 2}" width="${plusW}" height="${plusH}" fill="black"/>
+                        <rect x="${plusHole1.x - plusH / 2}" y="${plusHole1.y - plusW / 2}" width="${plusH}" height="${plusW}" fill="black"/>
+                        <rect x="${plusHole2.x - plusW / 2}" y="${plusHole2.y - plusH / 2}" width="${plusW}" height="${plusH}" fill="black"/>
+                        <rect x="${plusHole2.x - plusH / 2}" y="${plusHole2.y - plusW / 2}" width="${plusH}" height="${plusW}" fill="black"/>
+                    </mask>
+                </defs>
+                
+                <!-- Main Gear Body with Teeth (Masked) -->
+                <path d="${pathD}" fill="${color}" stroke="${darkerColor}" stroke-width="1" stroke-linejoin="round" mask="url(#${maskId})"/>
+                
+                <!-- Inner Ring (masked) -->
+                <circle cx="50" cy="50" r="38" fill="none" stroke="${lighterColor}" stroke-width="3" opacity="0.4" mask="url(#${maskId})"/>
+                
+                <!-- Round Hole Borders -->
+                <circle cx="${roundHole1.x}" cy="${roundHole1.y}" r="${holeRadius}" fill="none" stroke="${lighterColor}" stroke-width="1"/>
+                <circle cx="${roundHole2.x}" cy="${roundHole2.y}" r="${holeRadius}" fill="none" stroke="${lighterColor}" stroke-width="1"/>
+                
+                <!-- Plus Hole Borders -->
+                <rect x="${plusHole1.x - plusW / 2}" y="${plusHole1.y - plusH / 2}" width="${plusW}" height="${plusH}" fill="none" stroke="${lighterColor}" stroke-width="0.5"/>
+                <rect x="${plusHole1.x - plusH / 2}" y="${plusHole1.y - plusW / 2}" width="${plusH}" height="${plusW}" fill="none" stroke="${lighterColor}" stroke-width="0.5"/>
+                <rect x="${plusHole2.x - plusW / 2}" y="${plusHole2.y - plusH / 2}" width="${plusW}" height="${plusH}" fill="none" stroke="${lighterColor}" stroke-width="0.5"/>
+                <rect x="${plusHole2.x - plusH / 2}" y="${plusHole2.y - plusW / 2}" width="${plusH}" height="${plusW}" fill="none" stroke="${lighterColor}" stroke-width="0.5"/>
+                
+                <!-- Center Hub -->
+                <circle cx="50" cy="50" r="12" fill="${color}" stroke="${lighterColor}" stroke-width="1"/>
+                
+                <!-- Center Axle (Fixed large size for 36T) -->
+                <path d="M 42 50 H 58 M 50 42 V 58" stroke="${isMotor ? '#fbbf24' : '#ef4444'}" stroke-width="5" stroke-linecap="round"/>
+            </svg>`;
+        }
+
+        // Special SVG generator for 20T Gear (Double Bevel Style - Tan)
+        function generate20TGearSVG(teeth, color, size, isMotor) {
+            const darkerColor = adjustColor(color, -25);
+            const innerRingColor = adjustColor(color, -50); // Darker inner ring
+
+            // Path Data Generating Logic for 20T (Trapezoidal teeth)
+            let pathD = "";
+            const numTeeth = 20;
+            const cx = 50, cy = 50;
+            const rBase = 40;
+            const rTip = 54;  // Slightly longer teeth
+            const rad = Math.PI / 180;
+            const toothBaseSpan = 10; // Degrees (base width)
+            const toothTipSpan = 5;   // Degrees (tip width - narrower for trapezoid)
+
+            for (let i = 0; i < numTeeth; i++) {
+                const angle = (i * 360) / numTeeth;
+
+                // Angles for corners
+                const aBaseRight = angle - toothBaseSpan / 2;
+                const aBaseLeft = angle + toothBaseSpan / 2;
+                const aTipRight = angle - toothTipSpan / 2;
+                const aTipLeft = angle + toothTipSpan / 2;
+
+                // Coordinates
+                const xBaseR = cx + rBase * Math.cos(aBaseRight * rad);
+                const yBaseR = cy + rBase * Math.sin(aBaseRight * rad);
+                const xTipR = cx + rTip * Math.cos(aTipRight * rad);
+                const yTipR = cy + rTip * Math.sin(aTipRight * rad);
+                const xTipL = cx + rTip * Math.cos(aTipLeft * rad);
+                const yTipL = cy + rTip * Math.sin(aTipLeft * rad);
+                const xBaseL = cx + rBase * Math.cos(aBaseLeft * rad);
+                const yBaseL = cy + rBase * Math.sin(aBaseLeft * rad);
+
+                if (i === 0) {
+                    pathD += `M ${xBaseR} ${yBaseR}`;
+                } else {
+                    // Arc along the base circle between teeth
+                    pathD += ` A ${rBase} ${rBase} 0 0 1 ${xBaseR} ${yBaseR}`;
+                }
+
+                // Draw trapezoidal tooth with straight lines
+                pathD += ` L ${xTipR} ${yTipR}`;
+                pathD += ` L ${xTipL} ${yTipL}`;
+                pathD += ` L ${xBaseL} ${yBaseL}`;
+            }
+
+            // Close loop
+            const angleFirst = 0;
+            const xBaseRFirst = cx + rBase * Math.cos((angleFirst - toothBaseSpan / 2) * rad);
+            const yBaseRFirst = cy + rBase * Math.sin((angleFirst - toothBaseSpan / 2) * rad);
+            pathD += ` A ${rBase} ${rBase} 0 0 1 ${xBaseRFirst} ${yBaseRFirst}`;
+            pathD += " Z";
+
+            // Hole positions (4 holes at 45, 135, 225, 315 degrees)
+            const holeRadius = 8;
+            const holeDistance = 26; // Distance from center
+            const holeAngles = [45, 135, 225, 315];
+            const holePositions = holeAngles.map(a => ({
+                x: cx + holeDistance * Math.cos(a * rad),
+                y: cy + holeDistance * Math.sin(a * rad)
+            }));
+
+            // Static Mask ID
+            const maskId = "mask_20t_holes";
+
+            return `
+            <svg width="100%" height="100%" viewBox="-10 -10 120 120" style="overflow:visible">
+                <defs>
+                    <mask id="${maskId}">
+                        <rect x="-10" y="-10" width="120" height="120" fill="white"/>
+                        <!-- 4 Holes -->
+                        <circle cx="${holePositions[0].x}" cy="${holePositions[0].y}" r="${holeRadius}" fill="black"/>
+                        <circle cx="${holePositions[1].x}" cy="${holePositions[1].y}" r="${holeRadius}" fill="black"/>
+                        <circle cx="${holePositions[2].x}" cy="${holePositions[2].y}" r="${holeRadius}" fill="black"/>
+                        <circle cx="${holePositions[3].x}" cy="${holePositions[3].y}" r="${holeRadius}" fill="black"/>
+                    </mask>
+                </defs>
+                
+                <!-- Main Gear Body with Teeth (Masked for holes) -->
+                <path d="${pathD}" fill="${color}" stroke="${darkerColor}" stroke-width="1.5" stroke-linejoin="round" mask="url(#${maskId})"/>
+                
+                <!-- Inner Dark Ring (Shadow/Depth - also masked) -->
+                <circle cx="50" cy="50" r="28" fill="none" stroke="${innerRingColor}" stroke-width="6" opacity="0.5" mask="url(#${maskId})"/>
+                
+                <!-- Hole Borders -->
+                <circle cx="${holePositions[0].x}" cy="${holePositions[0].y}" r="${holeRadius}" fill="none" stroke="${darkerColor}" stroke-width="1.5"/>
+                <circle cx="${holePositions[1].x}" cy="${holePositions[1].y}" r="${holeRadius}" fill="none" stroke="${darkerColor}" stroke-width="1.5"/>
+                <circle cx="${holePositions[2].x}" cy="${holePositions[2].y}" r="${holeRadius}" fill="none" stroke="${darkerColor}" stroke-width="1.5"/>
+                <circle cx="${holePositions[3].x}" cy="${holePositions[3].y}" r="${holeRadius}" fill="none" stroke="${darkerColor}" stroke-width="1.5"/>
+                
+                <!-- Center Hub -->
+                <circle cx="50" cy="50" r="16" fill="${color}" stroke="${darkerColor}" stroke-width="1"/>
+                
+                <!-- Center Axle (Plus Shape) - Dynamic Size -->
+                ${generateDynamicAxlePath(size, isMotor)}
+            </svg>`;
+        }
+
+
+        // Special SVG generator for 28T Gear (Double Bevel Style - based on 20T logic but larger)
+        function generate28TGearSVG(teeth, color, size, isMotor) {
+            const darkerColor = adjustColor(color, -20);
+            const innerRingColor = adjustColor(color, -30);
+
+            let pathD = "";
+            const numTeeth = 28;
+            const cx = 50, cy = 50;
+
+            // Adjusted sizes for 28T (relative to 100x100 viewBox)
+            // 20T used rBase=40, rTip=54. 28T is larger, but fits in same viewBox by scaling or filling more.
+            // Since all gears fill the 100x100 box, we keep similar proportions but increase tooth density.
+            // Actuall, to keep consistent style, we use similar radii but tooth count handles the look.
+            // Wait, for same viewBox, more teeth = smaller teeth.
+            const rBase = 42;
+            const rTip = 54;
+            const rad = Math.PI / 180;
+            const toothBaseSpan = 360 / numTeeth * 0.6; // 60% of pitch
+            const toothTipSpan = 360 / numTeeth * 0.3;  // 30% of pitch
+
+            for (let i = 0; i < numTeeth; i++) {
+                const angle = (i * 360) / numTeeth;
+
+                const aBaseRight = angle - toothBaseSpan / 2;
+                const aBaseLeft = angle + toothBaseSpan / 2;
+                const aTipRight = angle - toothTipSpan / 2;
+                const aTipLeft = angle + toothTipSpan / 2;
+
+                const xBaseR = cx + rBase * Math.cos(aBaseRight * rad);
+                const yBaseR = cy + rBase * Math.sin(aBaseRight * rad);
+                const xTipR = cx + rTip * Math.cos(aTipRight * rad);
+                const yTipR = cy + rTip * Math.sin(aTipRight * rad);
+                const xTipL = cx + rTip * Math.cos(aTipLeft * rad);
+                const yTipL = cy + rTip * Math.sin(aTipLeft * rad);
+                const xBaseL = cx + rBase * Math.cos(aBaseLeft * rad);
+                const yBaseL = cy + rBase * Math.sin(aBaseLeft * rad);
+
+                if (i === 0) {
+                    pathD += `M ${xBaseR} ${yBaseR}`;
+                } else {
+                    pathD += ` A ${rBase} ${rBase} 0 0 1 ${xBaseR} ${yBaseR}`;
+                }
+
+                pathD += ` L ${xTipR} ${yTipR}`;
+                pathD += ` L ${xTipL} ${yTipL}`;
+                pathD += ` L ${xBaseL} ${yBaseL}`;
+            }
+
+            // Close loop
+            const angleFirst = 0;
+            const xBaseRFirst = cx + rBase * Math.cos((angleFirst - toothBaseSpan / 2) * rad);
+            const yBaseRFirst = cy + rBase * Math.sin((angleFirst - toothBaseSpan / 2) * rad);
+            pathD += ` A ${rBase} ${rBase} 0 0 1 ${xBaseRFirst} ${yBaseRFirst}`;
+            pathD += " Z";
+
+            // 4 Keyholes
+            const holeRadius = 9; // Slightly larger holes for larger gear
+            const holeDistance = 28;
+            const holeAngles = [45, 135, 225, 315];
+            const holePositions = holeAngles.map(a => ({
+                x: cx + holeDistance * Math.cos(a * rad),
+                y: cy + holeDistance * Math.sin(a * rad)
+            }));
+
+            const maskId = "mask_28t_holes";
+
+            return `
+            <svg width="100%" height="100%" viewBox="-10 -10 120 120" style="overflow:visible">
+                <defs>
+                    <mask id="${maskId}">
+                        <rect x="-10" y="-10" width="120" height="120" fill="white"/>
+                        <circle cx="${holePositions[0].x}" cy="${holePositions[0].y}" r="${holeRadius}" fill="black"/>
+                        <circle cx="${holePositions[1].x}" cy="${holePositions[1].y}" r="${holeRadius}" fill="black"/>
+                        <circle cx="${holePositions[2].x}" cy="${holePositions[2].y}" r="${holeRadius}" fill="black"/>
+                        <circle cx="${holePositions[3].x}" cy="${holePositions[3].y}" r="${holeRadius}" fill="black"/>
+                    </mask>
+                </defs>
+                
+                <!-- Body -->
+                <path d="${pathD}" fill="${color}" stroke="${darkerColor}" stroke-width="1.5" stroke-linejoin="round" mask="url(#${maskId})"/>
+                
+                <!-- Inner Ring -->
+                <circle cx="50" cy="50" r="30" fill="none" stroke="${innerRingColor}" stroke-width="5" opacity="0.4" mask="url(#${maskId})"/>
+                
+                <!-- Hole Borders -->
+                ${holePositions.map(p => `<circle cx="${p.x}" cy="${p.y}" r="${holeRadius}" fill="none" stroke="${darkerColor}" stroke-width="1.5"/>`).join('')}
+                
+                <!-- Hub -->
+                <circle cx="50" cy="50" r="16" fill="${color}" stroke="${darkerColor}" stroke-width="1"/>
+                
+                ${generateDynamicAxlePath(size, isMotor)}
+            </svg>`;
+        }
+
+        // Special SVG generator for 24T Gear (Based on User Reference)
+        function generate24TGearSVG(teeth, color, size, isMotor) {
+            const darkerColor = adjustColor(color, -20);
+
+            // Path Data Generating Logic for 24T
+            let pathD = "";
+            const numTeeth = 24;
+            const cx = 50, cy = 50;
+            const rBase = 36;  // Smaller body
+            const rTip = 48;   // Shorter teeth
+            const rad = Math.PI / 180;
+            const toothSpan = 8;
+            const tipSpan = 3;
+
+            for (let i = 0; i < numTeeth; i++) {
+                const angle = (i * 360) / numTeeth;
+
+                // Angles
+                const aBaseRight = angle - toothSpan / 2;
+                const aBaseLeft = angle + toothSpan / 2;
+                const aTipRight = angle - tipSpan / 2;
+                const aTipLeft = angle + tipSpan / 2;
+
+                // Coordinates
+                const xBaseR = cx + rBase * Math.cos(aBaseRight * rad);
+                const yBaseR = cy + rBase * Math.sin(aBaseRight * rad);
+                const xTipR = cx + rTip * Math.cos(aTipRight * rad);
+                const yTipR = cy + rTip * Math.sin(aTipRight * rad);
+                const xTipL = cx + rTip * Math.cos(aTipLeft * rad);
+                const yTipL = cy + rTip * Math.sin(aTipLeft * rad);
+                const xBaseL = cx + rBase * Math.cos(aBaseLeft * rad);
+                const yBaseL = cy + rBase * Math.sin(aBaseLeft * rad);
+
+                // Control points
+                const cpR_x = cx + (rBase + 5) * Math.cos((angle - 4) * rad);
+                const cpR_y = cy + (rBase + 5) * Math.sin((angle - 4) * rad);
+                const cpL_x = cx + (rBase + 5) * Math.cos((angle + 4) * rad);
+                const cpL_y = cy + (rBase + 5) * Math.sin((angle + 4) * rad);
+
+                if (i === 0) {
+                    pathD += `M ${xBaseR} ${yBaseR}`;
+                } else {
+                    pathD += ` A ${rBase} ${rBase} 0 0 1 ${xBaseR} ${yBaseR}`;
+                }
+
+                // Draw Tooth
+                pathD += ` Q ${cpR_x} ${cpR_y} ${xTipR} ${yTipR}`;
+                pathD += ` L ${xTipL} ${yTipL}`;
+                pathD += ` Q ${cpL_x} ${cpL_y} ${xBaseL} ${yBaseL}`;
+            }
+
+            // Close loop
+            const angleFirst = 0;
+            const xBaseRFirst = cx + rBase * Math.cos((angleFirst - toothSpan / 2) * rad);
+            const yBaseRFirst = cy + rBase * Math.sin((angleFirst - toothSpan / 2) * rad);
+            pathD += ` A ${rBase} ${rBase} 0 0 1 ${xBaseRFirst} ${yBaseRFirst}`;
+            pathD += " Z";
+
+            // Static Mask ID
+            const maskId = "mask_24t_holes";
+
+            return `
+            <svg width="100%" height="100%" viewBox="0 0 100 100" style="overflow:visible">
+                <defs>
+                    <mask id="${maskId}">
+                        <rect x="0" y="0" width="100" height="100" fill="white"/>
+                        <circle cx="36" cy="36" r="9" fill="black"/>
+                        <circle cx="64" cy="36" r="9" fill="black"/>
+                        <circle cx="36" cy="64" r="9" fill="black"/>
+                        <circle cx="64" cy="64" r="9" fill="black"/>
+                    </mask>
+                </defs>
+                
+                <!-- Main Body with Mask (Creates holes) -->
+                <path d="${pathD}" fill="${color}" stroke="${darkerColor}" stroke-width="1" stroke-linejoin="round" mask="url(#${maskId})"/>
+                
+                <!-- Inner Borders for Holes -->
+                <circle cx="36" cy="36" r="9" fill="none" stroke="${darkerColor}" stroke-width="1.5"/>
+                <circle cx="64" cy="36" r="9" fill="none" stroke="${darkerColor}" stroke-width="1.5"/>
+                <circle cx="36" cy="64" r="9" fill="none" stroke="${darkerColor}" stroke-width="1.5"/>
+                <circle cx="64" cy="64" r="9" fill="none" stroke="${darkerColor}" stroke-width="1.5"/>
+                
+                <!-- Center Hub -->
+                <circle cx="50" cy="50" r="14" fill="none" stroke="${darkerColor}" stroke-width="1"/>
+
+                <!-- Center Axle (Plus Shape) - Dynamic Size -->
+                ${generateDynamicAxlePath(size, isMotor)}
+            </svg>`;
+        }
+
+        // Special SVG generator for 8T Gear (Type 2 - Unified Body)
+        function generate8TGearSVG(teeth, color, size, isMotor) {
+            const darkerColor = adjustColor(color, -20);
+            const axleColor = isMotor ? '#f59e0b' : '#333';
+            const axleStroke = isMotor ? '#d97706' : '#222';
+
+            // Path Data Generating Logic for Unified Body
+            let pathD = "";
+            const numTeeth = 8;
+            const cx = 50, cy = 50;
+            const rBase = 32; // Optimized radius
+            const rTip = 52;  // Slightly shorter teeth
+
+            const rad = Math.PI / 180;
+            const toothSpan = 28; // Degrees width of tooth base (wider)
+            const tipSpan = 12;    // Degrees width of tooth tip (wider)
+
+            for (let i = 0; i < numTeeth; i++) {
+                const angle = (i * 360) / numTeeth;
+
+                // Angles
+                const aBaseRight = angle - toothSpan / 2;
+                const aBaseLeft = angle + toothSpan / 2;
+                const aTipRight = angle - tipSpan / 2;
+                const aTipLeft = angle + tipSpan / 2;
+
+                // Coordinates
+                const xBaseR = cx + rBase * Math.cos(aBaseRight * rad);
+                const yBaseR = cy + rBase * Math.sin(aBaseRight * rad);
+
+                const xTipR = cx + rTip * Math.cos(aTipRight * rad);
+                const yTipR = cy + rTip * Math.sin(aTipRight * rad);
+
+                const xTipL = cx + rTip * Math.cos(aTipLeft * rad);
+                const yTipL = cy + rTip * Math.sin(aTipLeft * rad);
+
+                const xBaseL = cx + rBase * Math.cos(aBaseLeft * rad);
+                const yBaseL = cy + rBase * Math.sin(aBaseLeft * rad);
+
+                // Control points for curvy tooth sides
+                const cpR_x = cx + (rBase + 10) * Math.cos((angle - 10) * rad);
+                const cpR_y = cy + (rBase + 10) * Math.sin((angle - 10) * rad);
+
+                const cpL_x = cx + (rBase + 10) * Math.cos((angle + 10) * rad);
+                const cpL_y = cy + (rBase + 10) * Math.sin((angle + 10) * rad);
+
+                // Start path or arc from previous
+                if (i === 0) {
+                    pathD += `M ${xBaseR} ${yBaseR}`;
+                } else {
+                    // Arc from previous BaseLeft to current BaseRight
+                    pathD += ` A ${rBase} ${rBase} 0 0 1 ${xBaseR} ${yBaseR}`;
+                }
+
+                // Draw Tooth
+                // 1. Curve up to tip right
+                pathD += ` Q ${cpR_x} ${cpR_y} ${xTipR} ${yTipR}`;
+
+                // 2. Tip arc (round top)
+                pathD += ` A 5 5 0 0 1 ${xTipL} ${yTipL}`;
+
+                // 3. Curve down to base left
+                pathD += ` Q ${cpL_x} ${cpL_y} ${xBaseL} ${yBaseL}`;
+            }
+
+            // Close the loop (Arc from last tooth to first)
+            const angleFirst = 0;
+            const xBaseRFirst = cx + rBase * Math.cos((angleFirst - toothSpan / 2) * rad);
+            const yBaseRFirst = cy + rBase * Math.sin((angleFirst - toothSpan / 2) * rad);
+            pathD += ` A ${rBase} ${rBase} 0 0 1 ${xBaseRFirst} ${yBaseRFirst}`;
+            pathD += " Z";
+
+            return `
+            <svg width="100%" height="100%" viewBox="0 0 100 100" style="overflow:visible">
+                <!-- Unified Gear Body -->
+                <path d="${pathD}" fill="${color}" stroke="${darkerColor}" stroke-width="1.5" stroke-linejoin="round"/>
+                
+                <!-- Inner detailing for depth -->
+                <circle cx="50" cy="50" r="22" fill="none" stroke="${darkerColor}" stroke-width="1" opacity="0.4"/>
+                
+                <!-- Inner Hub Supports -->
+                 <path d="M50 22 L50 32" stroke="${darkerColor}" stroke-width="3" stroke-linecap="round"/>
+                 <path d="M50 78 L50 68" stroke="${darkerColor}" stroke-width="3" stroke-linecap="round"/>
+                 <path d="M22 50 L32 50" stroke="${darkerColor}" stroke-width="3" stroke-linecap="round"/>
+                 <path d="M78 50 L68 50" stroke="${darkerColor}" stroke-width="3" stroke-linecap="round"/>
+
+                 <!-- Center Axle (Plus Shape) -->
+                 <!-- Center Axle (Plus Shape) - Dynamic Size -->
+                 ${generateDynamicAxlePath(size, isMotor)}
+            </svg>`;
+        }
+
+        // Special SVG generator for 40T Gear (Realistic Design)
+        function generate40TGearSVG(teeth, color, size, isMotor) {
+            const darkerColor = adjustColor(color, -30);
+            const lighterColor = adjustColor(color, 20);
+            const holeBorder = adjustColor(color, -15);
+            const cx = 50, cy = 50;
+            const rad = Math.PI / 180;
+
+            // Generate trapezoid teeth path (like 36T approach)
+            let pathD = '';
+            const numTeeth = 40;
+            const rBase = 44;
+            const rTip = 50;
+            const toothBaseSpan = 5;  // Degrees - tooth base width
+            const toothTipSpan = 3;   // Degrees - tooth tip width
+
+            for (let i = 0; i < numTeeth; i++) {
+                const angle = (i * 360) / numTeeth;
+
+                const aBaseRight = angle - toothBaseSpan / 2;
+                const aBaseLeft = angle + toothBaseSpan / 2;
+
+                const xBaseR = cx + rBase * Math.cos(aBaseRight * rad);
+                const yBaseR = cy + rBase * Math.sin(aBaseRight * rad);
+                const xTipR = cx + rTip * Math.cos((angle - toothTipSpan / 2) * rad);
+                const yTipR = cy + rTip * Math.sin((angle - toothTipSpan / 2) * rad);
+                const xTipL = cx + rTip * Math.cos((angle + toothTipSpan / 2) * rad);
+                const yTipL = cy + rTip * Math.sin((angle + toothTipSpan / 2) * rad);
+                const xBaseL = cx + rBase * Math.cos(aBaseLeft * rad);
+                const yBaseL = cy + rBase * Math.sin(aBaseLeft * rad);
+
+                if (i === 0) {
+                    pathD += `M ${xBaseR} ${yBaseR}`;
+                } else {
+                    pathD += ` A ${rBase} ${rBase} 0 0 1 ${xBaseR} ${yBaseR}`;
+                }
+
+                pathD += ` L ${xTipR} ${yTipR}`;
+                pathD += ` L ${xTipL} ${yTipL}`;
+                pathD += ` L ${xBaseL} ${yBaseL}`;
+            }
+            // Close loop
+            const xBaseRFirst = cx + rBase * Math.cos((-toothBaseSpan / 2) * rad);
+            const yBaseRFirst = cy + rBase * Math.sin((-toothBaseSpan / 2) * rad);
+            pathD += ` A ${rBase} ${rBase} 0 0 1 ${xBaseRFirst} ${yBaseRFirst} Z`;
+
+            // Generate 8 outer holes (at r=30)
+            const outerHoles = [0, 45, 90, 135, 180, 225, 270, 315].map(angle => {
+                const r = angle * rad;
+                return { x: cx + 30 * Math.cos(r), y: cy + 30 * Math.sin(r), r: 8 };
+            });
+
+            // Generate 8 inner holes (at r=17)
+            const innerHoles = [22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5].map(angle => {
+                const r = angle * rad;
+                return { x: cx + 17 * Math.cos(r), y: cy + 17 * Math.sin(r), r: 5 };
+            });
+
+            const allHoles = [...outerHoles, ...innerHoles];
+            const maskId = 'mask_40t_holes';
+
+            return `
+            <svg width="100%" height="100%" viewBox="0 0 100 100" style="overflow:visible">
+                <defs>
+                    <mask id="${maskId}">
+                        <rect x="0" y="0" width="100" height="100" fill="white"/>
+                        ${allHoles.map(h => `<circle cx="${h.x}" cy="${h.y}" r="${h.r}" fill="black"/>`).join('')}
+                        <circle cx="${cx}" cy="${cy}" r="5" fill="black"/>
+                    </mask>
+                </defs>
+                
+                <!-- Main Gear Body with Teeth (Masked) - like 36T -->
+                <path d="${pathD}" fill="${color}" stroke="${darkerColor}" stroke-width="0.5" stroke-linejoin="round" mask="url(#${maskId})"/>
+                
+                <!-- Inner Ring (masked) -->
+                <circle cx="${cx}" cy="${cy}" r="38" fill="none" stroke="${lighterColor}" stroke-width="2" opacity="0.3" mask="url(#${maskId})"/>
+                
+                <!-- 4 Spokes (masked) -->
+                <line x1="${cx - 40}" y1="${cy}" x2="${cx + 40}" y2="${cy}" stroke="${color}" stroke-width="4" mask="url(#${maskId})"/>
+                <line x1="${cx}" y1="${cy - 40}" x2="${cx}" y2="${cy + 40}" stroke="${color}" stroke-width="4" mask="url(#${maskId})"/>
+                
+                <!-- Hole Borders -->
+                ${allHoles.map(h => `<circle cx="${h.x}" cy="${h.y}" r="${h.r}" fill="none" stroke="${holeBorder}" stroke-width="1"/>`).join('')}
+                
+                <!-- Center Hub -->
+                <circle cx="${cx}" cy="${cy}" r="10" fill="${color}" stroke="${darkerColor}" stroke-width="1"/>
+                
+                <!-- Center Axle -->
+                ${generateDynamicAxlePath(size, isMotor)}
+            </svg>`;
+        }
+
+        // Helper function to adjust color brightness
+        function adjustColor(hex, amount) {
+            const num = parseInt(hex.replace('#', ''), 16);
+            const r = Math.min(255, Math.max(0, (num >> 16) + amount));
+            const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amount));
+            const b = Math.min(255, Math.max(0, (num & 0x0000FF) + amount));
+            return '#' + (0x1000000 + (r << 16) + (g << 8) + b).toString(16).slice(1);
+        }
+
+        // --- INTERACTION ---
+
+        function handleHoleClick(beamIndex, holeIndex) {
+            // Motor mode: place motor on this hole
+            if (motorMode) {
+                // Remove motor from previous position if any
+                motorPosition = { beamIndex, holeIndex };
+                motorMode = false;
+
+                // Update UI
+                const btn = document.getElementById('motorModeBtn');
+                btn.classList.remove('active');
+                btn.innerHTML = '⚡ Motor Yerleştir';
+
+                renderBeam();
+                updateMotorInfoPanel();
+                updateStatus(`Motor Kiriş ${beamIndex + 1}, Delik ${holeIndex + 1}'e yerleştirildi.`);
+                return;
+            }
+
+            // Delete mode: remove gear if exists
+            if (deleteMode) {
+                // Also remove motor if clicking on motor position
+                if (motorPosition && motorPosition.beamIndex === beamIndex && motorPosition.holeIndex === holeIndex) {
+                    motorPosition = null;
+                    renderBeam();
+                    updateMotorInfoPanel();
+                    updateStatus('Motor kaldırıldı.');
+                    return;
+                }
+
+                if (boardState[beamIndex][holeIndex] !== null) {
+                    const gear = boardState[beamIndex][holeIndex];
+                    if (gear.nextLayer) {
+                        // Remove topmost layer
+                        let current = gear;
+                        while (current.nextLayer && current.nextLayer.nextLayer) {
+                            current = current.nextLayer;
+                        }
+                        current.nextLayer = null;
+                        updateStatus(t('layerRemoved'));
+                    } else {
+                        boardState[beamIndex][holeIndex] = null;
+                        updateStatus(t('gearRemoved', gear.teeth));
+                    }
+                    renderBeam();
+                } else {
+                    updateStatus(t('noGearToRemove'));
+                }
+                return;
+            }
+
+            // Tooth Mode
+            if (toothMode) {
+                // Add Pointer Overlay
+                // Assuming addGear handles 'tooth' type logic to toggle pointer
+                // Create a fake template with required properties for rendering
+                const template = { type: 'tooth', teeth: 1, color: '#FF7F00', radius: 0.5 };
+                addGear(beamIndex, holeIndex, template);
+                return;
+            }
+
+            // Add Gear
+            if (selectedGearIndex === null) {
+                updateStatus(t('selectGearFirst'), true);
+                return;
+            }
+
+            // Multi-Layer Support: If hole occupied, try adding to next layer
+            if (boardState[beamIndex][holeIndex] !== null) {
+                let current = boardState[beamIndex][holeIndex];
+                let layerCount = 1;
+                while (current.nextLayer) {
+                    current = current.nextLayer;
+                    layerCount++;
+                }
+
+                // Limit layers
+                if (layerCount >= 2) {
+                    updateStatus('Bu delik dolu (Maksimum 2 katman).');
+                    return;
+                }
+
+                // Add to next layer with angle offset to avoid visual overlap
+                const template = GEARS[selectedGearIndex];
+                // Deep copy
+                current.nextLayer = JSON.parse(JSON.stringify(template));
+                // Offset angle by half tooth pitch (~22.5 degrees) from the layer below
+                const offsetAngle = template.teeth > 0 ? (180 / template.teeth) : 22.5;
+                current.nextLayer.angle = (current.angle + offsetAngle) % 360;
+
+                renderBeam();
+                updateStatus(t('layerAdded'));
+            } else {
+                addGear(beamIndex, holeIndex, GEARS[selectedGearIndex]);
+            }
+        }
+
+        function addGear(beamIndex, holeIndex, gearTemplate) {
+            // Check if adding a pointer (Tooth) overlay to an existing gear
+            const existingGear = boardState[beamIndex][holeIndex];
+            if (gearTemplate.type === 'tooth' && existingGear) {
+                if (!existingGear.pointers) existingGear.pointers = [];
+                // Prevent duplicate pointers at same angle
+                if (!existingGear.pointers.includes(currentPointerAngle)) {
+                    existingGear.pointers.push(currentPointerAngle);
+                    renderBeam();
+                }
+                return;
+            }
+
+            // Auto-align angle with neighbors for meshing
+            let initialAngle = 0;
+            const halfPitch = 180 / gearTemplate.teeth;
+
+            // Find any meshing neighbor by scanning all gears
+            let foundNeighbor = null;
+
+            for (let bIdx = 0; bIdx < beamCount; bIdx++) {
+                for (let hIdx = 0; hIdx < 11; hIdx++) {
+                    if (bIdx === beamIndex && hIdx === holeIndex) continue;
+                    if (boardState[bIdx] && boardState[bIdx][hIdx]) {
+                        const neighbor = boardState[bIdx][hIdx];
+                        const beamDiff = Math.abs(bIdx - beamIndex);
+                        const holeDiff = Math.abs(hIdx - holeIndex);
+                        const dist = Math.sqrt(beamDiff * beamDiff + holeDiff * holeDiff);
+                        const radiiSum = gearTemplate.radius + neighbor.radius;
+                        const tolerance = radiiSum * 0.20; // 20% tolerance
+
+                        if (Math.abs(dist - radiiSum) <= tolerance) {
+                            foundNeighbor = neighbor;
+                            break;
+                        }
+                    }
+                }
+                if (foundNeighbor) break;
+            }
+
+            if (foundNeighbor) {
+                const neighborHalfPitch = 180 / foundNeighbor.teeth;
+                // Offset by neighbor's half pitch for proper meshing (tooth into gap)
+                initialAngle = foundNeighbor.angle + neighborHalfPitch;
+            }
+
+            // Normalize angle
+            initialAngle = ((initialAngle % 360) + 360) % 360;
+
+            // New gear instance (Ensure pointers array is copied, not referenced)
+            boardState[beamIndex][holeIndex] = {
+                ...gearTemplate,
+                pointers: gearTemplate.pointers ? [...gearTemplate.pointers] : undefined,
+                angle: initialAngle,
+                velocity: 0,
+                beamIndex: beamIndex,
+                holeIndex: holeIndex
+            };
+            renderBeam();
+        }
+
+        function removeGear(beamIndex, holeIndex) {
+            const gear = boardState[beamIndex][holeIndex];
+            if (gear) {
+                if (gear.nextLayer) {
+                    let current = gear;
+                    while (current.nextLayer && current.nextLayer.nextLayer) {
+                        current = current.nextLayer;
+                    }
+                    current.nextLayer = null;
+                } else {
+                    boardState[beamIndex][holeIndex] = null;
+                }
+            }
+            renderBeam();
+            validateAndCalculate();
+        }
+
+        // --- PHYSICS & LOGIC ---
+
+        function validateAndCalculate() {
+            const connections = [];
+            gearConnectionsMap = {}; // Reset global map for manual rotation
+            let isValid = true;
+            let statusMsg = t('gearsPlaced');
+
+            // Collect all gears with their positions (Multi-Layer)
+            const allGears = [];
+            for (let beamIdx = 0; beamIdx < beamCount; beamIdx++) {
+                if (boardState[beamIdx]) {
+                    for (let holeIdx = 0; holeIdx < 11; holeIdx++) {
+                        let g = boardState[beamIdx][holeIdx];
+                        // Check if this hole has the motor
+                        const isMotorPos = motorPosition &&
+                            motorPosition.beamIndex === beamIdx &&
+                            motorPosition.holeIndex === holeIdx;
+
+                        let layer = 0;
+                        while (g) {
+                            allGears.push({
+                                beamIndex: beamIdx,
+                                holeIndex: holeIdx,
+                                gear: g,
+                                layer: layer,
+                                isMotor: isMotorPos
+                            });
+                            g = g.nextLayer;
+                            layer++;
+                        }
+                    }
+                }
+            }
+
+            // Check connections check (Dynamic Distance)
+            for (let i = 0; i < allGears.length; i++) {
+                for (let j = i + 1; j < allGears.length; j++) {
+                    const gearA = allGears[i];
+                    const gearB = allGears[j];
+
+                    if (gearA.layer !== gearB.layer) continue;
+
+                    // Support Vertical & Horizontal & Diagonal Connections
+                    // Calculate Euclidean Distance in Studs
+                    // LEGO Technic: h=1.19 creates near perfect vertical stack for 4-beam gap (36+40)
+                    const BEAM_VERTICAL_SPACING = 1.19; // Studs between beam hole centers vertically
+                    const beamDist = Math.abs(gearA.beamIndex - gearB.beamIndex) * BEAM_VERTICAL_SPACING;
+                    const holeDist = Math.abs(gearA.holeIndex - gearB.holeIndex);
+                    const actualDist = Math.sqrt(beamDist * beamDist + holeDist * holeDist);
+
+                    const requiredDist = gearA.gear.radius + gearB.gear.radius;
+
+                    // Bush Logic: No Mesh, Only Collision
+                    if (gearA.gear.type === 'bush' || gearB.gear.type === 'bush') {
+                        if (requiredDist > actualDist + 0.15) {
+                            connections.push({
+                                fromBeam: gearA.beamIndex, from: gearA.holeIndex,
+                                toBeam: gearB.beamIndex, to: gearB.holeIndex,
+                                type: 'collision', layer: gearA.layer
+                            });
+                            isValid = false;
+                            statusMsg = t('collision', gearA.beamIndex + 1, gearB.beamIndex + 1);
+                        }
+                        continue;
+                    }
+
+                    // Gear Logic: Mesh or Collision
+                    // Valid mesh tolerance: 0.22 (robust tolerance for all diagonal approximations)
+                    const MESH_TOLERANCE = 0.22;
+                    if (Math.abs(actualDist - requiredDist) < MESH_TOLERANCE) {
+                        connections.push({
+                            fromBeam: gearA.beamIndex, from: gearA.holeIndex,
+                            toBeam: gearB.beamIndex, to: gearB.holeIndex,
+                            type: 'valid', layer: gearA.layer
+                        });
+
+                        // Populate Global Map for Manual Rotation (Drag)
+                        const keyA = `${gearA.beamIndex}_${gearA.holeIndex}`;
+                        const keyB = `${gearB.beamIndex}_${gearB.holeIndex}`;
+                        if (!gearConnectionsMap[keyA]) gearConnectionsMap[keyA] = [];
+                        if (!gearConnectionsMap[keyB]) gearConnectionsMap[keyB] = [];
+                        const ratio = -(gearA.gear.teeth / gearB.gear.teeth);
+                        if (!gearConnectionsMap[keyA].find(x => x.k === keyB)) gearConnectionsMap[keyA].push({ k: keyB, b: gearB.beamIndex, h: gearB.holeIndex, ratio: ratio });
+                        if (!gearConnectionsMap[keyB].find(x => x.k === keyA)) gearConnectionsMap[keyB].push({ k: keyA, b: gearA.beamIndex, h: gearA.holeIndex, ratio: 1 / ratio });
+
+                    } else if (requiredDist > actualDist + MESH_TOLERANCE) {
+                        // Only report collision if they OVERLAP significantly
+                        connections.push({
+                            fromBeam: gearA.beamIndex, from: gearA.holeIndex,
+                            toBeam: gearB.beamIndex, to: gearB.holeIndex,
+                            type: 'collision', layer: gearA.layer
+                        });
+                        isValid = false;
+                        statusMsg = `⚠️ Çarpışma: (K${gearA.beamIndex + 1}-K${gearB.beamIndex + 1})`;
+                    }
+                }
+            }
+
+            // Speed Propagation (graph based)
+            // 1. Reset
+            for (let b = 0; b < beamCount; b++) {
+                if (boardState[b]) for (let h = 0; h < 11; h++) {
+                    let g = boardState[b][h];
+                    while (g) { g.velocity = 0; g = g.nextLayer; }
+                }
+            }
+
+            // 2. BFS from Motors
+            let queue = [];
+            allGears.forEach(item => {
+                if (item.isMotor) {
+                    item.gear.velocity = 1;
+                    queue.push(item);
+                }
+            });
+
+            let visited = new Set();
+            queue.forEach(q => visited.add(`${q.beamIndex}-${q.holeIndex}-${q.layer}`));
+
+            let head = 0;
+            while (head < queue.length) {
+                const current = queue[head++];
+                const cv = current.gear.velocity;
+
+                // A. Co-axial (Axle Lock)
+                const stackHead = boardState[current.beamIndex][current.holeIndex];
+                let s = stackHead;
+                let l = 0;
+                while (s) {
+                    const key = `${current.beamIndex}-${current.holeIndex}-${l}`;
+                    if (!visited.has(key)) {
+                        s.velocity = cv;
+                        visited.add(key);
+                        queue.push({ beamIndex: current.beamIndex, holeIndex: current.holeIndex, gear: s, layer: l });
+                    }
+                    s = s.nextLayer;
+                    l++;
+                }
+
+                // B. Mesh Connections
+                connections.forEach(conn => {
+                    if (conn.type !== 'valid' || conn.layer !== current.layer) return;
+
+                    let neighborKey = '';
+                    let targetBeam = -1, targetHole = -1;
+
+                    if (conn.fromBeam === current.beamIndex && conn.from === current.holeIndex) {
+                        targetBeam = conn.toBeam; targetHole = conn.to;
+                    } else if (conn.toBeam === current.beamIndex && conn.to === current.holeIndex) {
+                        targetBeam = conn.fromBeam; targetHole = conn.from;
+                    }
+
+                    if (targetBeam !== -1) {
+                        // Find gear object
+                        let tStack = boardState[targetBeam][targetHole];
+                        let tGear = null;
+                        let i = 0;
+                        while (tStack) { if (i === current.layer) { tGear = tStack; break; } tStack = tStack.nextLayer; i++; }
+
+                        if (tGear) {
+                            neighborKey = `${targetBeam}-${targetHole}-${current.layer}`;
+                            if (!visited.has(neighborKey)) {
+                                const r1 = current.gear.radius;
+                                const r2 = tGear.radius;
+                                tGear.velocity = cv * -(r1 / r2);
+                                visited.add(neighborKey);
+                                queue.push({ beamIndex: targetBeam, holeIndex: targetHole, gear: tGear, layer: current.layer });
+                            }
+                        }
+                    }
+                });
+            }
+
+            renderConnections(connections);
+
+            const hasGears = allGears.length > 0;
+            if (!hasGears) {
+                updateStatus("Simülasyon hazır.", false);
+            } else if (!isValid) {
+                updateStatus(statusMsg, true);
+            } else if (connections.length > 0) {
+                updateStatus(`✅ Bağlantı aktif. Mesh hesabı yapıldı.`);
+            } else {
+                updateStatus(t('gearsIndependent'));
+            }
+
+            // Always update stats UI when board changes
+            renderSimulationStats();
+            renderSideView();
+
+            return { isValid, connections };
+        }
+
+        function renderSideView_Old() {
+            const container = document.getElementById('sideViewContainer');
+            if (!container) return;
+
+            // Visual Constants for Side Profile
+            const scale = 0.55; // Scale down to fit box
+            const studSize = STUD_SPACING * scale; // Horizontal space per hole
+            const beamHeight = 20; // Visual thickness of beam (Top Layer)
+            const gearHeight = 18; // Visual thickness of gear (Bottom Layer)
+            const axleHeight = 15; // Connection length
+            const layerGap = 8;
+
+            // Calculate SVG height based on beam count
+            // Each beam takes: beamHeight + axleHeight + gearHeight + margin
+            const rowHeight = 70;
+            const svgWidth = (11 * studSize) + 40;
+            const svgHeight = Math.max(80, beamCount * rowHeight);
+
+            let svgContent = `<svg width="100%" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" style="overflow:visible;">`;
+
+            // Draw each beam row
+            for (let b = 0; b < beamCount; b++) {
+                const startY = b * rowHeight + 10;
+                const beamY = startY;
+                const gearY = startY + beamHeight + layerGap;
+
+                // 1. Draw Brick Layer (The Beam)
+                // Looks like a long rectangle
+                const beamWidth = 11 * studSize;
+                // Beam Color Mapping
+                const colorMap = {
+                    'blue': '#0056b3', 'red': '#c91a09', 'yellow': '#f59e0b',
+                    'green': '#16a34a', 'white': '#e2e8f0', 'black': '#1e293b'
+                };
+                const bColor = colorMap[beamColor] || '#0056b3';
+
+                // Draw Beam Body
+                svgContent += `
+                    <!-- Beam ${b + 1} -->
+                    <rect x="20" y="${beamY}" width="${beamWidth}" height="${beamHeight}" rx="2" fill="${bColor}" stroke="rgba(0,0,0,0.2)" stroke-width="1"/>
+                    <!-- Stud tops indication (small lines) -->
+                `;
+
+                // Add stud markers on beam
+                for (let s = 0; s < 11; s++) {
+                    svgContent += `<circle cx="${20 + s * studSize + studSize / 2}" cy="${beamY + beamHeight / 2}" r="2" fill="rgba(0,0,0,0.2)" />`;
+                }
+
+                // 2. Scan for Gears to draw Gear Layer
+                if (boardState[b]) {
+                    for (let h = 0; h < 11; h++) {
+                        const gear = boardState[b][h];
+                        if (gear) {
+                            const centerX = 20 + (h * studSize) + (studSize / 2);
+
+                            // Gear Width (Diameter edge-on)
+                            const diameter = (gear.radius * 2 * STUD_SPACING * scale);
+
+                            // Draw Axle (Yellow) connecting Beam and Gear
+                            svgContent += `
+                                <rect x="${centerX - 3}" y="${beamY + beamHeight / 2}" width="6" height="${beamHeight / 2 + layerGap + gearHeight}" fill="#facc15" stroke="#ca8a04" stroke-width="0.5" rx="1"/>
+                            `;
+
+                            // Draw Gear (Edge View) - A rectangle with "teeth" pattern
+                            // If user wants specific look for 28T vs others, we can differentiate, but usually generic 'ridged cylinder' looks fine.
+                            const gColor = gear.color;
+                            const dColor = adjustColor(gColor, -20);
+
+                            // Main Gear Body
+                            svgContent += `
+                                <rect x="${centerX - diameter / 2}" y="${gearY}" width="${diameter}" height="${gearHeight}" rx="3" fill="${gColor}" stroke="${dColor}" stroke-width="1"/>
+                            `;
+
+                            // Add rudimentary "teeth" texture (vertical lines)
+                            const toothSpacing = 4;
+                            const numStripes = Math.floor(diameter / toothSpacing);
+                            for (let t = 1; t < numStripes; t++) {
+                                svgContent += `
+                                    <line x1="${centerX - diameter / 2 + t * toothSpacing}" y1="${gearY}" 
+                                          x2="${centerX - diameter / 2 + t * toothSpacing}" y2="${gearY + gearHeight}" 
+                                          stroke="${dColor}" stroke-width="0.5" opacity="0.5"/>
+                                `;
+                            }
+                        }
+                    }
+                }
+            }
+
+            svgContent += `</svg>`;
+            container.innerHTML = svgContent;
+        }
+
+        // Global State for Beam Tab (For Side View Only)
+        // activeBeamIndex is defined above
+
+        function switchBeam(index) {
+            activeBeamIndex = index;
+            renderSideView();
+        }
+
+        function renderSideView() {
+            const container = document.getElementById('sideViewContainer');
+            if (!container) return;
+
+            // Visual Constants for Side Profile
+            const scale = 0.5;
+            const studSize = STUD_SPACING * scale;
+            const beamHeight = 20;
+            const gearHeight = 18;
+            const layerGap = 2;
+
+            // Motor Dimensions
+            const motorWidth = 50;
+            const motorHeight = 40;
+            const motorGap = 4;
+
+            // 1. Generate HTML Tabs
+            let tabsHtml = '<div style="display:flex; gap:0; margin-bottom:10px; flex-wrap:wrap; border-bottom:1px solid #e2e8f0;">';
+            for (let i = 0; i < beamCount; i++) {
+                const isActive = i === activeBeamIndex;
+                // Add border radius only to first and last items for a "group" look
+                let borderRadius = '0';
+                if (i === 0) borderRadius = '6px 0 0 6px';
+                if (i === beamCount - 1) borderRadius = '0 6px 6px 0';
+                if (beamCount === 1) borderRadius = '6px';
+
+                tabsHtml += `<button onclick="switchBeam(${i})" style="
+                    padding: 4px 8px; 
+                    border:1px solid ${isActive ? '#0066cc' : '#e2e8f0'}; 
+                    /* Prevent double borders if not active, active brings its own full border */
+                    margin-right: -1px; 
+                    background:${isActive ? '#0066cc' : '#f8fafc'}; 
+                    color:${isActive ? '#ffffff' : '#64748b'}; 
+                    border-radius: ${borderRadius}; 
+                    cursor:pointer; 
+                    font-size: 0.8rem;
+                    font-weight: 500;
+                    min-width: 32px;
+                    text-align: center;
+                    transition: all 0.1s;
+                    z-index: ${isActive ? 10 : 1}; /* Active on top */
+                    position: relative;
+                ">
+                    K${i + 1}
+                </button>`;
+            }
+            tabsHtml += '</div>';
+
+            // 2. Determine Geometry (Dynamic Width)
+            let maxLeftSide = 0;
+            let maxRightSide = 0;
+            const beamPixelWidth = 12 * studSize; // 12 studs wide
+
+            const b = activeBeamIndex; // Focus only on active beam
+            if (boardState[b]) {
+                for (let h = 0; h < 11; h++) {
+                    if (boardState[b][h]) {
+                        const gear = boardState[b][h];
+                        let current = gear;
+                        while (current) {
+                            const gearRadiusPx = current.radius * STUD_SPACING * scale;
+                            // Axle h is between stud h and stud h+1
+                            const centerPos = (h * studSize) + studSize;
+
+                            const leftEdge = centerPos - gearRadiusPx;
+                            if (leftEdge < 0) maxLeftSide = Math.max(maxLeftSide, Math.abs(leftEdge));
+
+                            const rightEdge = centerPos + gearRadiusPx;
+                            if (rightEdge > beamPixelWidth) maxRightSide = Math.max(maxRightSide, rightEdge - beamPixelWidth);
+
+                            current = current.nextLayer;
+                        }
+                    }
+                }
+            }
+
+            const paddingLeft = 20 + maxLeftSide;
+            const paddingRight = 20 + maxRightSide;
+
+            // Height Calculation (Motor + Beam + Gear Layers)
+            // Need to calculate max layer depth for this beam
+            let maxLayers = 1;
+            if (boardState[b]) {
+                for (let h = 0; h < 11; h++) {
+                    let l = 0;
+                    let g = boardState[b][h];
+                    while (g) { l++; g = g.nextLayer; }
+                    if (l > maxLayers) maxLayers = l;
+                }
+            }
+            // Height = Motor (Top) + Beam + Layers (Bottom)
+            // Motor is above beam. Layers are below beam.
+            const svgHeight = motorHeight + 10 + beamHeight + (maxLayers * (gearHeight + layerGap)) + 20;
+            const svgWidth = beamPixelWidth + paddingLeft + paddingRight;
+
+            let svgContent = `<svg width="100%" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" style="overflow:visible;" preserveAspectRatio="xMidYMid meet">`;
+
+            // Draw SINGLE Beam (Active) - Always at Y=0 relative to content
+            // Start Y logic: Allow space for Motor on top
+            const startY = motorHeight + 10;
+            const beamY = startY;
+            const gearY = startY + beamHeight + layerGap;
+
+            const colorMap = {
+                'blue': '#0056b3', 'red': '#c91a09', 'yellow': '#f59e0b',
+                'green': '#16a34a', 'white': '#e2e8f0', 'black': '#1e293b'
+            };
+            const bColor = colorMap[beamColor] || '#0056b3';
+
+            // 0. CHECK & DRAW MOTOR (Top)
+            if (motorPosition && motorPosition.beamIndex === b) {
+                const h = motorPosition.holeIndex;
+                // Axle position: between stud h and h+1 (centered)
+                const centerX = paddingLeft + (h * studSize) + studSize;
+                const mY = beamY - motorGap - motorHeight;
+
+                // Motor Axle
+                svgContent += `<rect x="${centerX - 3}" y="${mY + motorHeight}" width="6" height="${motorGap + 5}" fill="#facc15" stroke="#ca8a04" stroke-width="0.5" rx="1"/>`;
+
+                // Motor Body
+                svgContent += `
+                    <rect x="${centerX - motorWidth / 2}" y="${mY}" width="${motorWidth}" height="${motorHeight}" rx="4" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+                    <rect x="${centerX - motorWidth / 2}" y="${mY + motorHeight - 12}" width="${motorWidth}" height="12" rx="2" fill="#0ea5e9" stroke="#0284c7" stroke-width="1" clip-path="inset(0 0 2px 0)"/>
+                    <circle cx="${centerX - 12}" cy="${mY + 10}" r="3" fill="#e2e8f0"/>
+                    <circle cx="${centerX + 12}" cy="${mY + 10}" r="3" fill="#e2e8f0"/>
+                `;
+            }
+
+            // 1. Draw Axles (11 axles, positioned between studs)
+            if (boardState[b]) {
+                for (let h = 0; h < 11; h++) {
+                    const gear = boardState[b][h];
+                    if (gear) {
+                        let layerCount = 0;
+                        let current = gear;
+                        while (current) { layerCount++; current = current.nextLayer; }
+
+                        const totalHeight = layerCount * (gearHeight + layerGap);
+                        // Axle h is between stud h and stud h+1
+                        const centerX = paddingLeft + (h * studSize) + studSize;
+                        // Standard Axle -> Red
+                        svgContent += `<rect x="${centerX - 3}" y="${beamY + beamHeight}" width="6" height="${totalHeight}" fill="#dc2626" stroke="#991b1b" stroke-width="0.5" rx="1"/>`;
+                    }
+                }
+            }
+
+            // 2. Draw Beam (width = 12 studs)
+            const beamPixelWidthFull = 12 * studSize;
+            svgContent += `<rect x="${paddingLeft}" y="${beamY}" width="${beamPixelWidthFull}" height="${beamHeight}" rx="2" fill="${bColor}" stroke="rgba(0,0,0,0.3)" stroke-width="1"/>`;
+
+            // 3. Draw 12 Studs (on top of beam surface)
+            const studRadius = studSize / 2 - 4;
+            for (let s = 0; s < 12; s++) {
+                const sx = paddingLeft + s * studSize + studSize / 2;
+                const sy = beamY + beamHeight / 2; // Centered vertically in the beam
+                svgContent += `
+                    <circle cx="${sx}" cy="${sy}" r="${studRadius}" fill="${bColor}" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                `;
+            }
+
+            // 4. (Axle Holes removed as per request)
+
+            // 5. Draw Gears (positioned at axle centers)
+            if (boardState[b]) {
+                for (let h = 0; h < 11; h++) {
+                    const gear = boardState[b][h];
+                    if (gear) {
+                        let current = gear;
+                        let layerIdx = 0;
+
+                        while (current) {
+                            const currentGearY = gearY + (layerIdx * (gearHeight + layerGap));
+                            // Gear center is at axle position (between stud h and h+1)
+                            const centerX = paddingLeft + (h * studSize) + studSize;
+                            const diameter = (current.radius * 2 * STUD_SPACING * scale);
+                            const gColor = current.color;
+                            const dColor = adjustColor(gColor, -20);
+
+                            // Gear Body
+                            svgContent += `<rect x="${centerX - diameter / 2}" y="${currentGearY}" width="${diameter}" height="${gearHeight}" rx="2" fill="${gColor}" stroke="${dColor}" stroke-width="1"/>`;
+
+                            // Teeth detail
+                            const toothSpacing = 4;
+                            const numStripes = Math.floor(diameter / toothSpacing);
+                            for (let t = 1; t < numStripes; t++) {
+                                svgContent += `<line x1="${centerX - diameter / 2 + t * toothSpacing}" y1="${currentGearY}" x2="${centerX - diameter / 2 + t * toothSpacing}" y2="${currentGearY + gearHeight}" stroke="${dColor}" stroke-width="0.5" opacity="0.6"/>`;
+                            }
+
+                            // Draw Pointer (Tooth) if exists or if gear type is tooth
+                            if (current.type === 'tooth' || (current.pointers && current.pointers.length > 0) || current.hasPointer) {
+                                const ptrHeight = 15;
+                                const ptrY = currentGearY + gearHeight;
+                                // Draw Orange Pointer Triangle pointing down/outward
+                                svgContent += `
+                                    <polygon points="${centerX},${ptrY + ptrHeight} ${centerX - 4},${ptrY} ${centerX + 4},${ptrY}" 
+                                             fill="#FF7F00" stroke="#9a3412" stroke-width="1"/>
+                                `;
+                            }
+                            current = current.nextLayer;
+                            layerIdx++;
+                        }
+                    }
+                }
+            }
+
+            svgContent += `</svg>`;
+            container.innerHTML = tabsHtml + svgContent;
+        }
+
+
+        function renderConnections(connections) {
+            const layer = document.getElementById('connectionLayer');
+            if (!layer) return;
+
+            layer.innerHTML = connections.map(conn => {
+                const isError = conn.type === 'collision';
+
+                // Calculate position relative to hole container origin (left: 20px)
+                // Hole center X = index * STUD_SPACING
+                // Start X = from * STUD_SPACING
+                // Width = (to - from) * STUD_SPACING
+
+                // We want the line to start from center of From hole to center of To hole.
+                // The layer is inside .technic-beam which has padding. 
+                // But .beam-holes is rel pos.
+                // Let's attach relative to connectionLayer which is at top-left of beam content
+
+                // Adjust for parent padding (20px)
+                const startX = (conn.from * STUD_SPACING) + 20 + 12; // 20 padding + 12 half hole
+                const width = (conn.to - conn.from) * STUD_SPACING;
+
+                return `
+                    <div class="connection-indicator ${isError ? 'error' : ''}" 
+                         style="left: ${startX}px; width: ${width}px; background-color: ${isError ? '#e74c3c' : '#2ecc71'};">
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- ANIMATION ENGINE ---
+
+        function toggleSimulation() {
+            if (isRunning) {
+                stopSimulation();
+            } else {
+                startSimulation();
+            }
+        }
+
+        // --- MODAL FUNCTIONS ---
+        function showModal(message, title = "Uyarı") {
+            const modal = document.getElementById('warningModal');
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMessage').textContent = message;
+            modal.classList.add('active');
+        }
+
+        function closeModal(event) {
+            // Close if clicked on overlay or close button
+            if (!event || event.target.id === 'warningModal' || event.target.classList.contains('modal-btn')) {
+                document.getElementById('warningModal').classList.remove('active');
+            }
+        }
+
+        // Run one full turn (360°) of the motor and generate report
+        function runOneTurn() {
+            // Check if motor is placed
+            if (!motorPosition) {
+                showModal(t('motorMissing'), t('motorMissingMsg'));
+                return;
+            }
+
+            // Validate connections
+            const { isValid, connections } = validateAndCalculate();
+            if (!isValid) {
+                showModal(t('error'), t('conflictGears'));
+                return;
+            }
+
+            // Collect all gears with their calculated velocities
+            const allGears = [];
+            for (let beamIdx = 0; beamIdx < beamCount; beamIdx++) {
+                if (boardState[beamIdx]) {
+                    for (let holeIdx = 0; holeIdx < 11; holeIdx++) {
+                        let g = boardState[beamIdx][holeIdx];
+                        const isMotorPos = motorPosition &&
+                            motorPosition.beamIndex === beamIdx &&
+                            motorPosition.holeIndex === holeIdx;
+
+                        let layer = 0;
+                        while (g) {
+                            if (g.type !== 'bush') {
+                                allGears.push({
+                                    beamIndex: beamIdx,
+                                    holeIndex: holeIdx,
+                                    gear: g,
+                                    layer: layer,
+                                    isMotor: isMotorPos && layer === 0,
+                                    velocity: g.velocity || 0
+                                });
+                            }
+                            g = g.nextLayer;
+                            layer++;
+                        }
+                    }
+                }
+            }
+
+            if (allGears.length === 0) {
+                showModal(t('noGears'), t('noGearsMsg'));
+                return;
+            }
+
+            // Calculate report data
+            // Motor velocity is 1.0 (reference), others are relative
+            const motorGear = allGears.find(g => g.isMotor);
+            const baseVelocity = motorGear ? Math.abs(motorGear.velocity) : 1;
+
+            let reportHtml = `
+                <div style="text-align: left; max-height: 400px; overflow-y: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                        <thead>
+                            <tr style="background: #0066cc; color: white;">
+                                <th style="padding: 8px; border: 1px solid #ccc;">${t("gear")}</th>
+                                <th style="padding: 8px; border: 1px solid #ccc;">Konum</th>
+                                <th style="padding: 8px; border: 1px solid #ccc;">Dönüş</th>
+                                <th style="padding: 8px; border: 1px solid #ccc;">Hız</th>
+                                <th style="padding: 8px; border: 1px solid #ccc;">Tork</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            allGears.forEach(item => {
+                const speedRatio = baseVelocity > 0 ? Math.abs(item.velocity) / baseVelocity : 0;
+                const torqueRatio = speedRatio > 0 ? 1 / speedRatio : 0;
+                const rotation = 360 * speedRatio; // Degrees when motor does 360°
+                const direction = item.velocity >= 0 ? '↻' : '↺';
+                const isMotorClass = item.isMotor ? 'background: #fef3c7;' : '';
+
+                reportHtml += `
+                    <tr style="${isMotorClass}">
+                        <td style="padding: 6px; border: 1px solid #e2e8f0; text-align: center;">
+                            <span style="display: inline-block; width: 12px; height: 12px; background: ${item.gear.color}; border-radius: 50%; margin-right: 4px;"></span>
+                            ${item.gear.teeth}T ${item.isMotor ? '⚡' : ''}
+                        </td>
+                        <td style="padding: 6px; border: 1px solid #e2e8f0; text-align: center;">
+                            K${item.beamIndex + 1} D${item.holeIndex + 1}${item.layer > 0 ? ' L' + (item.layer + 1) : ''}
+                        </td>
+                        <td style="padding: 6px; border: 1px solid #e2e8f0; text-align: center;">
+                            ${direction} ${rotation.toFixed(1)}°
+                        </td>
+                        <td style="padding: 6px; border: 1px solid #e2e8f0; text-align: center;">
+                            ${speedRatio.toFixed(2)}x
+                        </td>
+                        <td style="padding: 6px; border: 1px solid #e2e8f0; text-align: center;">
+                            ${torqueRatio.toFixed(2)}x
+                        </td>
+                    </tr>
+                `;
+            });
+
+            reportHtml += `
+                        </tbody>
+                    </table>
+                    <div style="margin-top: 15px; padding: 10px; background: #f0f9ff; border-radius: 8px; font-size: 0.8rem; color: #0369a1;">
+                        <strong>📊 Özet:</strong><br>
+                        Motor 1 tur (360°) döndüğünde yukarıdaki dönüşler gerçekleşir.<br>
+                        Hız = Dönüş hızı oranı (motor referans).<br>
+                        Tork = Güç çarpanı (hızın tersi).
+                    </div>
+                </div>
+            `;
+
+            // Show report in modal
+            showReportModal("1 Tur Raporu", reportHtml);
+        }
+
+        // Report modal function
+        function showReportModal(title, content) {
+            const modal = document.getElementById('warningModal');
+            modal.querySelector('.modal-title').textContent = title;
+            modal.querySelector('.modal-message').innerHTML = content;
+            modal.classList.add('active');
+        }
+
+        function startSimulation() {
+            // 1. Run Physics Engine (Validates & Calculates Velocities)
+            const { isValid, connections } = validateAndCalculate();
+
+            if (!isValid) {
+                showModal(t('simCannotStart'));
+                return;
+            }
+
+            // Check if motor is placed
+            if (!motorPosition) {
+                showModal(t('motorMissingSimMsg'), '⚠️ ' + t('motorMissing'));
+                return;
+            }
+
+            // Check if there are any gears
+            let hasGears = false;
+            for (let b = 0; b < beamCount; b++) if (boardState[b]) for (let h = 0; h < 11; h++) if (boardState[b][h]) hasGears = true;
+
+            if (!hasGears) {
+                updateStatus(t('noGearsToRotate'));
+                return;
+            }
+
+            // Initialize Simulation State
+            isRunning = true;
+            document.getElementById('toggleRun').innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                Durdur
+            `;
+
+            lastFrameTime = performance.now();
+
+            // Render Stats (Initial State)
+            renderSimulationStats();
+
+            // Start Loop
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        function stopSimulation() {
+            isRunning = false;
+            document.getElementById('toggleRun').innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                Çalıştır
+            `;
+            cancelAnimationFrame(animationFrameId);
+
+            // Hide stats panel NO MORE
+            // document.getElementById('simulationStats').classList.remove('active');
+
+            // Re-render to show static state (grey background, no dynamics)
+            renderSimulationStats();
+        }
+
+        function renderSimulationStats() {
+            const statsGrid = document.getElementById('statsGrid');
+            const statsPanel = document.getElementById('simulationStats');
+
+            // Collect all gears
+            const allGears = [];
+            let driverGear = null;
+            let driverIndex = 0;
+
+            for (let beamIdx = 0; beamIdx < beamCount; beamIdx++) {
+                if (boardState[beamIdx]) {
+                    for (let holeIdx = 0; holeIdx < 11; holeIdx++) {
+                        let gear = boardState[beamIdx][holeIdx];
+                        if (gear) {
+                            const baseVelocity = gear.velocity || 0;
+                            const isMotorPosition = motorPosition &&
+                                motorPosition.beamIndex === beamIdx &&
+                                motorPosition.holeIndex === holeIdx;
+
+                            let layerIdx = 0;
+                            let current = gear;
+
+                            while (current) {
+                                // Sync velocity for stats
+                                current.velocity = baseVelocity;
+
+                                allGears.push({
+                                    beamIndex: beamIdx,
+                                    holeIndex: holeIdx,
+                                    gear: current,
+                                    isMotor: isMotorPosition,
+                                    layer: layerIdx,
+                                    visualId: `gear_visual_${beamIdx}_${holeIdx}_L${layerIdx}`
+                                });
+
+                                // Add Virtual Tooth Entries for Pointers
+                                const pointers = current.pointers || (current.hasPointer ? [0] : []);
+                                pointers.forEach((pOffset, pIdx) => {
+                                    allGears.push({
+                                        beamIndex: beamIdx,
+                                        holeIndex: holeIdx,
+                                        gear: {
+                                            type: 'tooth',
+                                            teeth: 1,
+                                            color: '#FF7F00',
+                                            angle: (current.angle || 0) + pOffset,
+                                            velocity: current.velocity
+                                        },
+                                        isMotor: false,
+                                        layer: layerIdx,
+                                        isVirtual: true,
+                                        pointerIndex: pIdx,
+                                        visualId: `pointer_visual_${beamIdx}_${holeIdx}_L${layerIdx}_P${pIdx}`
+                                    });
+                                });
+
+                                if (isMotorPosition && layerIdx === 0) {
+                                    driverGear = current;
+                                    driverIndex = allGears.length - 1 - pointers.length; // Adjust index to point to real gear
+                                }
+
+                                current = current.nextLayer;
+                                layerIdx++;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!driverGear && allGears.length > 0) {
+                driverGear = allGears[0].gear;
+                driverIndex = 0;
+            }
+
+            if (allGears.length === 0) {
+                statsPanel.classList.remove('active');
+                return;
+            }
+            statsPanel.classList.add('active');
+
+            let html = '';
+            // Show dynamics ONLY if running
+            const showDynamics = isRunning;
+
+            allGears.forEach((item, idx) => {
+                const gear = item.gear;
+
+                // Hide Bush from stats (but show Tooth)
+                if (gear.type === 'bush') return;
+
+                const isDriver = !item.isVirtual && (idx === driverIndex); // Fix driver check
+                // Note: We need accurate index mapping. Let's simplify: driver is only the main gear.
+                // Re-calculating driver logic is complex with inserted items.
+                // Let's iterate and check reference.
+                const isRealDriver = (gear === driverGear);
+                const hasMotor = item.isMotor;
+
+                // For virtual items, use parent velocity logic
+                const isSpinning = showDynamics && (Math.abs(gear.velocity) > 0.001 || (isRealDriver && hasMotor));
+
+                // Add active class for green background if spinning
+                const activeClass = isSpinning ? 'active-spinning' : (isRealDriver ? 'driver' : '');
+
+                let dynamicRows = '';
+                if (isSpinning) {
+                    const directionText = gear.velocity > 0 ? 'Saat Yönü' : 'Ters Yön';
+                    const directionIcon = gear.velocity > 0 ? '↻' : '↺';
+                    const dirClass = gear.velocity > 0 ? 'cw' : 'ccw';
+
+                    let speedRatio = '1.00';
+                    if (driverGear && Math.abs(driverGear.velocity) > 0.001) {
+                        speedRatio = Math.abs(gear.velocity / driverGear.velocity).toFixed(2);
+                    } else if (Math.abs(gear.velocity) < 0.001) {
+                        speedRatio = '0.00';
+                    }
+
+                    dynamicRows = `
+                        <div class="gear-stat-row">
+                            <span class="gear-stat-label">Yön:</span>
+                            <span class="gear-stat-value ${dirClass}">
+                                <span class="rotation-indicator">${directionIcon}</span> ${directionText}
+                            </span>
+                        </div>
+                        <div class="gear-stat-row">
+                            <span class="gear-stat-label">Hız:</span>
+                            <span class="gear-stat-value">
+                                ${speedRatio}x 
+                                <span style="font-size: 0.8em; color: #64748b; margin-left: 4px;">
+                                    (${Math.round(Math.abs(gear.velocity) * 300)} RPM)
+                                </span>
+                            </span>
+                        </div>
+                     `;
+                }
+
+                html += `
+                    <div class="gear-stat-card ${activeClass}" onclick="highlightGear('${item.visualId}')" style="cursor: pointer;">
+                        <div class="gear-stat-header">
+                            <div class="gear-stat-color" style="background: ${gear.color}"></div>
+                            <span class="gear-stat-name">${gear.type === 'tooth' ? 'Tooth' : gear.teeth + 'T'}</span>
+                            <span class="gear-stat-hole">(K${item.beamIndex + 1} D${item.holeIndex + 1}${item.layer > 0 ? ' L' + (item.layer + 1) : ''})</span>
+                        </div>
+                        <div class="gear-stat-values">
+                            <div class="gear-stat-row">
+                                <span class="gear-stat-label">Rol:</span>
+                                <span class="gear-stat-value">${isDriver ? (hasMotor ? '⚡ Motor' : '🔧 Sürücü') : '⚙️ Takipçi'}</span>
+                            </div>
+                            ${dynamicRows}
+                            <div class="gear-stat-row">
+                                <span class="gear-stat-label">Açı:</span>
+                                <span class="gear-stat-value" id="${item.isVirtual ? `angle_pointer_${item.beamIndex}_${item.holeIndex}_L${item.layer}_P${item.pointerIndex}` : `angle_${item.beamIndex}_${item.holeIndex}_L${item.layer}`}">${Math.round(gear.angle || 0)}°</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            statsGrid.innerHTML = html;
+        }
+
+        // Highlight Selected Gear with Yellow Glow
+        let currentHighlight = null;
+        let currentHighlightKey = null;
+
+        function highlightGear(visualId) {
+            const key = visualId;
+
+            // Toggle: If same gear clicked again, remove highlight
+            if (currentHighlightKey === key) {
+                clearHighlight();
+                return;
+            }
+
+            // Remove previous highlight
+            clearHighlight();
+
+            // Find the gear visual element
+            const el = document.getElementById(visualId);
+            if (el) {
+                // Apply yellow glow effect
+                el.style.transition = 'filter 0.3s ease';
+                el.style.filter = 'drop-shadow(0 0 8px #facc15) drop-shadow(0 0 15px #fbbf24) drop-shadow(0 0 25px #f59e0b)';
+                currentHighlight = el;
+                currentHighlightKey = key;
+            }
+        }
+
+        function clearHighlight() {
+            if (currentHighlight) {
+                currentHighlight.style.filter = '';
+                currentHighlight.style.transition = '';
+                currentHighlight = null;
+                currentHighlightKey = null;
+            }
+        }
+
+        function updateAngleDisplay() {
+            for (let beamIdx = 0; beamIdx < beamCount; beamIdx++) {
+                if (boardState[beamIdx]) {
+                    for (let holeIdx = 0; holeIdx < 11; holeIdx++) {
+                        let gear = boardState[beamIdx][holeIdx];
+                        let layerIdx = 0;
+                        while (gear) {
+                            // Update Gear Angle
+                            const angleEl = document.getElementById(`angle_${beamIdx}_${holeIdx}_L${layerIdx}`);
+                            if (angleEl) {
+                                const normalizedAngle = ((gear.angle % 360) + 360) % 360;
+                                angleEl.textContent = `${normalizedAngle.toFixed(0)}°`;
+                            }
+
+                            // Update Pointer Angles (Virtual Teeth)
+                            const pointers = gear.pointers || (gear.hasPointer ? [0] : []);
+                            pointers.forEach((pOffset, pIdx) => {
+                                const pAngleEl = document.getElementById(`angle_pointer_${beamIdx}_${holeIdx}_L${layerIdx}_P${pIdx}`);
+                                if (pAngleEl) {
+                                    const pAngle = (gear.angle + pOffset);
+                                    const normPAngle = ((pAngle % 360) + 360) % 360;
+                                    pAngleEl.textContent = `${normPAngle.toFixed(0)}°`;
+                                }
+                            });
+
+                            gear = gear.nextLayer;
+                            layerIdx++;
+                        }
+                    }
+                }
+            }
+        }
+
+        let lastFrameTime = 0;
+        function animate(time) {
+            if (!isRunning) return;
+
+            const delta = (time - lastFrameTime);
+            const safeDelta = Math.min(delta, 50);
+            lastFrameTime = time;
+
+            const speedFactor = 0.1;
+            const currentSpeedMultiplier = parseFloat(document.getElementById('speedSlider')?.value || 1);
+
+            for (let beamIdx = 0; beamIdx < beamCount; beamIdx++) {
+                if (boardState[beamIdx]) {
+                    for (let holeIdx = 0; holeIdx < 11; holeIdx++) {
+                        const gearStack = boardState[beamIdx][holeIdx];
+
+                        if (gearStack) {
+                            // Physics Update (Base Layer drives the stack)
+                            if (gearStack.velocity !== 0) {
+                                const da = gearStack.velocity * currentSpeedMultiplier * speedFactor * safeDelta;
+                                gearStack.angle += da;
+                            }
+
+                            // Render Update (All Layers Synced)
+                            let current = gearStack;
+                            let layerIdx = 0;
+                            const baseAngle = gearStack.angle;
+
+                            while (current) {
+                                // Sync angle for co-axial gears
+                                current.angle = baseAngle;
+
+                                // Update Visual Element
+                                const visual = document.getElementById(`gear_visual_${beamIdx}_${holeIdx}_L${layerIdx}`);
+                                if (visual) {
+                                    visual.style.transform = `translate(-50%, -50%) rotate(${current.angle}deg)`;
+
+                                    // Update Pointers if any
+                                    const pointers = current.pointers || (current.hasPointer ? [0] : []);
+                                    pointers.forEach((pOffset, pIdx) => {
+                                        const pVisual = document.getElementById(`pointer_visual_${beamIdx}_${holeIdx}_L${layerIdx}_P${pIdx}`);
+                                        if (pVisual) {
+                                            pVisual.style.transform = `translate(-50%, -50%) rotate(${current.angle + pOffset}deg)`;
+                                        }
+                                    });
+                                }
+
+                                current = current.nextLayer;
+                                layerIdx++;
+                            }
+                        }
+                    }
+                }
+            }
+
+            updateAngleDisplay();
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        // Start
+        // init(); moved to bottom
+
+    </script>
+
+    <!-- Warning Modal -->
+    <div class="modal-overlay" id="warningModal" onclick="closeModal(event)">
+        <div class="modal-content">
+            <h3 class="modal-title" id="modalTitle"><span class="en-content">Warning</span><span
+                    class="tr-content">Uyarı</span></h3>
+            <p class="modal-message" id="modalMessage"><span class="en-content">Message</span><span
+                    class="tr-content">Mesaj</span></p>
+            <button class="modal-btn" onclick="closeModal()"><span class="en-content">OK</span><span
+                    class="tr-content">Tamam</span></button>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div class="modal-overlay" id="confirmModal" onclick="closeConfirmModal(event)">
+        <div class="modal-content">
+            <h3 class="modal-title" style="color:#c91a09;"><span class="en-content">Are you sure?</span><span
+                    class="tr-content">Emin misiniz?</span></h3>
+            <p class="modal-message"><span class="en-content">The entire workspace will be cleared. This cannot be
+                    undone.</span><span class="tr-content">Tüm çalışma alanı temizlenecek. Bu işlem geri
+                    alınamaz.</span></p>
+            <div style="display:flex; gap:10px; justify-content: flex-end; margin-top:15px;">
+                <button class="modal-btn" style="background:#e2e8f0; color:#475569;"
+                    onclick="closeConfirmModal({target:{classList:{contains:()=>true}}})"><span
+                        class="en-content">Cancel</span><span class="tr-content">İptal</span></button>
+                <button class="modal-btn" style="background:#c91a09; color:#fff;" onclick="executeClearBoard()"><span
+                        class="en-content">Clear</span><span class="tr-content">Temizle</span></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Init logic...
+
+        // --- DRAG ROTATION LOGIC ---
+        function startGearDrag(event, beamIndex, holeIndex) {
+            // Only allow if no modal tools selected
+            if (deleteMode || motorMode || selectedGearIndex !== null) return;
+            // Also prevent if button/input clicked
+            if (event.target.tagName === 'BUTTON' || event.target.tagName === 'INPUT') return;
+
+            isDraggingGear = true;
+            draggedGearKey = { beamIndex, holeIndex };
+            lastMouseX = event.clientX;
+            // event.preventDefault(); // Don't prevent default completely to allow click for hole selection if just a click
+        }
+
+        function handleGearDrag(event) {
+            if (!isDraggingGear || !draggedGearKey) return;
+
+            const deltaX = event.clientX - lastMouseX;
+            if (deltaX === 0) return;
+
+            const sensitivity = 2; // Degrees per pixel
+            const angleDelta = deltaX * sensitivity;
+
+            rotateGearNetwork(draggedGearKey.beamIndex, draggedGearKey.holeIndex, angleDelta);
+            renderBeam();
+
+            lastMouseX = event.clientX;
+        }
+
+        function endGearDrag(event) {
+            isDraggingGear = false;
+            draggedGearKey = null;
+        }
+
+        function rotateGearNetwork(startBeam, startHole, deltaAngle) {
+            const queue = [{ b: startBeam, h: startHole, delta: deltaAngle }];
+            const visited = new Set();
+            visited.add(`${startBeam}_${startHole}`);
+
+            // Rotate Initial Stack (Axle)
+            if (boardState[startBeam] && boardState[startBeam][startHole]) {
+                let g = boardState[startBeam][startHole];
+                while (g) {
+                    g.angle = (g.angle || 0) + deltaAngle;
+                    g = g.nextLayer;
+                }
+            }
+
+            let head = 0;
+            while (head < queue.length) {
+                const { b, h, delta } = queue[head++];
+                const key = `${b}_${h}`;
+
+                const neighbors = gearConnectionsMap[key] || [];
+                for (const neighbor of neighbors) {
+                    const nKey = `${neighbor.b}_${neighbor.h}`;
+                    if (!visited.has(nKey)) {
+                        visited.add(nKey);
+                        const nDelta = delta * neighbor.ratio;
+
+                        // Rotate Neighbor Stack
+                        if (boardState[neighbor.b] && boardState[neighbor.b][neighbor.h]) {
+                            let ng = boardState[neighbor.b][neighbor.h];
+                            while (ng) {
+                                ng.angle = (ng.angle || 0) + nDelta;
+                                ng = ng.nextLayer;
+                            }
+                        }
+
+                        queue.push({ b: neighbor.b, h: neighbor.h, delta: nDelta });
+                    }
+                }
+            }
+        }
+
+
+        // Translation System - must be defined before init()
+
+        // Translation System
+        const translations = {
+            en: {
+                teeth: 'Teeth',
+                bore: 'Bore',
+                deleteGear: 'Delete Gear',
+                selectGear: 'Selected: <strong>{0} Teeth</strong>. Click a hole on the beam.',
+                selectBore: 'Selected: <strong>Bore (Spacer)</strong>. Click a hole.',
+                deleteMode: 'Delete mode active. Click on hole to remove gear.',
+                toothMode: 'Tooth mode active. Set direction and click a gear.',
+                toothModeOff: 'Tooth mode disabled.',
+                allCleared: 'All gears cleared.',
+                layerRemoved: 'Top layer gear removed.',
+                gearRemoved: '{0} Teeth gear removed.',
+                noGearToRemove: 'No gear to remove in this hole.',
+                selectGearFirst: '⚠️ Please select a gear from the left panel first.',
+                layerAdded: 'Added gear to layer 2.',
+                gearsPlaced: 'Gears placed.',
+                gearsIndependent: 'Gears are independent.',
+                collision: '⚠️ Collision (Bore): (B{0}-B{1})',
+                motorMissing: 'Motor Missing',
+                motorMissingMsg: 'Please place a motor first to rotate 1 turn.',
+                error: 'Error',
+                conflictGears: 'There are conflicting gears! Please fix the errors first.',
+                noGears: 'No Gears',
+                noGearsMsg: 'Place at least one gear to generate report.',
+                gear: 'Gear',
+                simCannotStart: 'Simulation cannot start: There are conflicting gears! Please fix the red marked errors.',
+                motorMissingSimMsg: 'Please place a motor from section "3. Add Motor" to start simulation.',
+                noGearsToRotate: 'No gears to rotate.'
+            },
+            tr: {
+                teeth: 'Diş',
+                bore: 'Burç',
+                deleteGear: 'Dişli Sil',
+                selectGear: 'Seçili: <strong>{0} Diş</strong>. Mavi kiriş üzerindeki bir deliğe tıklayın.',
+                selectBore: 'Seçili: <strong>Burç (Boşluk)</strong>. Bir deliğe tıklayın.',
+                deleteMode: 'Silme modu aktif. Kaldırmak istediğiniz dişlinin deliğine tıklayın.',
+                toothMode: 'Tooth modu aktif. Yönü ayarlayıp dişliye tıklayın.',
+                toothModeOff: 'Tooth modu kapatıldı.',
+                allCleared: 'Tüm dişliler temizlendi.',
+                layerRemoved: 'Üst katmandaki dişli kaldırıldı.',
+                gearRemoved: '{0} Diş dişli kaldırıldı.',
+                noGearToRemove: 'Bu delikte kaldırılacak dişli yok.',
+                selectGearFirst: '⚠️ Lütfen önce sol taraftan bir dişli seçin.',
+                layerAdded: '2. katmana dişli eklendi.',
+                gearsPlaced: 'Dişliler yerleştirildi.',
+                gearsIndependent: 'Dişliler bağımsız.',
+                collision: '⚠️ Çarpışma (Burç): (K{0}-K{1})',
+                motorMissing: 'Motor Eksik',
+                motorMissingMsg: '1 tur döndürmek için önce bir motor yerleştirin.',
+                error: 'Hata',
+                conflictGears: 'Çakışan dişliler var! Lütfen önce hataları düzeltin.',
+                noGears: 'Dişli Yok',
+                noGearsMsg: 'Rapor oluşturmak için en az bir dişli yerleştirin.',
+                gear: 'Dişli',
+                simCannotStart: 'Simülasyon başlatılamaz: Çakışan dişliler var! Lütfen kırmızı ile işaretlenen hataları düzeltin.',
+                motorMissingSimMsg: 'Simülasyonu başlatmak için lütfen önce "3. Motor Ekle" bölümünden bir motor yerleştirin.',
+                noGearsToRotate: 'Döndürülecek dişli yok.'
+            }
+        };
+
+        let currentLang = 'en';
+
+        function t(key, ...args) {
+            let text = translations[currentLang][key] || translations['en'][key] || key;
+            args.forEach((arg, i) => {
+                text = text.replace(`{${i}}`, arg);
+            });
+            return text;
+        }
+
+        // Language Switcher
+        function setLang(lang) {
+            currentLang = lang;
+            document.body.className = 'lang-' + lang;
+            document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = Array.from(document.querySelectorAll('.lang-btn')).find(b => b.innerText.toLowerCase() === lang);
+            if (activeBtn) activeBtn.classList.add('active');
+            localStorage.setItem('lego-lang', lang);
+        }
+        const savedLang = localStorage.getItem('lego-lang') || 'en';
+        currentLang = savedLang;
+        setLang(savedLang);
+
+        // Start Initialization (must be after translations are defined)
+        init();
+    </script>
+</body>
+
+</html>
