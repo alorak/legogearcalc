@@ -74,8 +74,6 @@
             if (deleteMode) {
                 deleteMode = false;
                 document.getElementById('deleteModeBtn').classList.remove('active');
-                const trashIcon = iconSvg('trash', 'ui-icon ui-icon--sm');
-                document.getElementById('deleteModeBtn').innerHTML = trashIcon + t('deleteGear');
                 document.getElementById('simContainer').classList.remove('delete-mode');
             }
 

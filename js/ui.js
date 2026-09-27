@@ -120,16 +120,13 @@
             document.querySelectorAll('.gear-option').forEach(el => el.classList.remove('selected'));
             const btn = document.getElementById('deleteModeBtn');
             const simContainer = document.getElementById('simContainer');
-            const trashIcon = iconSvg('trash', 'ui-icon ui-icon--sm');
 
             if (deleteMode) {
                 btn.classList.add('active');
-                btn.innerHTML = trashIcon + t('deleteGear');
                 simContainer.classList.add('delete-mode');
                 updateStatus(t('deleteMode'));
             } else {
                 btn.classList.remove('active');
-                btn.innerHTML = trashIcon + t('deleteGear');
                 simContainer.classList.remove('delete-mode');
                 updateStatus('Silme modu kapatıldı.');
             }
@@ -191,8 +188,6 @@
             // Update UI
             document.querySelectorAll('.gear-option').forEach(el => el.classList.remove('selected'));
             document.getElementById('deleteModeBtn').classList.remove('active');
-            const trashIcon = iconSvg('trash', 'ui-icon ui-icon--sm');
-            document.getElementById('deleteModeBtn').innerHTML = trashIcon + t('deleteGear');
             document.getElementById('simContainer').classList.remove('delete-mode');
 
             const btn = document.getElementById('motorModeBtn');
