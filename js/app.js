@@ -108,7 +108,12 @@
                 gear: 'Gear',
                 simCannotStart: 'Simulation cannot start: There are conflicting gears! Please fix the red marked errors.',
                 motorMissingSimMsg: 'Please place a motor from section "3. Add Motor" to start simulation.',
-                noGearsToRotate: 'No gears to rotate.'
+                noGearsToRotate: 'No gears to rotate.',
+                cannotPlacePart: 'Cannot Place Part',
+                placementCollision: 'This part cannot be placed here because it physically overlaps another part on the same layer.',
+                placementPhaseConflict: 'This gear cannot mesh with all neighboring gears at the same time. The tooth phases are incompatible.',
+                maxGearLayers: 'This axle already has the maximum of 2 gear layers.',
+                toothNeedsGear: 'Place a gear first, then add the Tooth pointer to that gear.'
             },
             tr: {
                 teeth: 'Diş',
@@ -137,7 +142,12 @@
                 gear: 'Dişli',
                 simCannotStart: 'Simülasyon başlatılamaz: Çakışan dişliler var! Lütfen kırmızı ile işaretlenen hataları düzeltin.',
                 motorMissingSimMsg: 'Simülasyonu başlatmak için lütfen önce "3. Motor Ekle" bölümünden bir motor yerleştirin.',
-                noGearsToRotate: 'Döndürülecek dişli yok.'
+                noGearsToRotate: 'Döndürülecek dişli yok.',
+                cannotPlacePart: 'Parça Eklenemiyor',
+                placementCollision: 'Bu parça aynı katmandaki başka bir parçayla fiziksel olarak çakıştığı için buraya eklenemez.',
+                placementPhaseConflict: 'Bu dişli tüm komşu dişlilerle aynı anda kavraşamaz. Diş fazları birbiriyle uyumsuz.',
+                maxGearLayers: 'Bu aks üzerinde en fazla 2 dişli katmanı kullanılabilir.',
+                toothNeedsGear: 'Önce bir dişli yerleştirin, ardından Tooth göstergesini o dişliye ekleyin.'
             }
         };
 

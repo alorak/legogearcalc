@@ -1,15 +1,286 @@
 // Gear interaction, physics, side view, reports, and animation.
 
+// --- LEGO GEAR PLACEMENT CONSTRAINTS ---
+// Distances are expressed in LEGO stud units.
+const BEAM_VERTICAL_SPACING_STUDS = 1.2;
+const MESH_DISTANCE_TOLERANCE_STUDS = 0.065;
+const TOOTH_PHASE_TOLERANCE_CYCLES = 0.06;
+const GEAR_ADDENDUM_STUDS = 0.125;
+const BUSH_COLLISION_RADIUS_STUDS = 0.46;
+const COLLISION_CLEARANCE_STUDS = 0.015;
+
+function normalizeModulo(value, period) {
+    if (!Number.isFinite(value) || !Number.isFinite(period) || period <= 0) return 0;
+    return ((value % period) + period) % period;
+}
+
+function circularDistance(valueA, valueB, period) {
+    const delta = Math.abs(normalizeModulo(valueA - valueB, period));
+    return Math.min(delta, period - delta);
+}
+
+function isToothedGear(gear) {
+    return !!gear && gear.type !== 'bush' && Number.isFinite(gear.teeth) && gear.teeth > 0;
+}
+
+function getPitchRadius(gear) {
+    if (!isToothedGear(gear)) return null;
+    return gear.teeth / 16;
+}
+
+function getPhysicalRadius(gear) {
+    if (!gear) return 0;
+    if (gear.type === 'bush') return BUSH_COLLISION_RADIUS_STUDS;
+    const pitchRadius = getPitchRadius(gear);
+    return pitchRadius === null ? 0 : pitchRadius + GEAR_ADDENDUM_STUDS;
+}
+
+function getToothPitchDegrees(gear) {
+    return isToothedGear(gear) ? 360 / gear.teeth : null;
+}
+
+function gearCenterPosition(item) {
+    return {
+        x: item.holeIndex,
+        y: item.beamIndex * BEAM_VERTICAL_SPACING_STUDS
+    };
+}
+
+function gearCenterDistance(itemA, itemB) {
+    const a = gearCenterPosition(itemA);
+    const b = gearCenterPosition(itemB);
+    return Math.hypot(b.x - a.x, b.y - a.y);
+}
+
+function contactAngleDegrees(fromItem, toItem) {
+    const from = gearCenterPosition(fromItem);
+    const to = gearCenterPosition(toItem);
+    return Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI;
+}
+
+function classifyGearPair(itemA, itemB) {
+    const actualDistance = gearCenterDistance(itemA, itemB);
+    const gearA = itemA.gear;
+    const gearB = itemB.gear;
+
+    if (gearA.type === 'bush' || gearB.type === 'bush') {
+        const physicalDistance = getPhysicalRadius(gearA) + getPhysicalRadius(gearB);
+        return {
+            type: actualDistance < physicalDistance - COLLISION_CLEARANCE_STUDS ? 'collision' : 'independent',
+            actualDistance,
+            requiredDistance: physicalDistance
+        };
+    }
+
+    if (!isToothedGear(gearA) || !isToothedGear(gearB)) {
+        return { type: 'independent', actualDistance, requiredDistance: null };
+    }
+
+    const pitchDistance = getPitchRadius(gearA) + getPitchRadius(gearB);
+    const distanceError = actualDistance - pitchDistance;
+
+    if (Math.abs(distanceError) <= MESH_DISTANCE_TOLERANCE_STUDS) {
+        return {
+            type: 'mesh',
+            actualDistance,
+            requiredDistance: pitchDistance,
+            distanceError
+        };
+    }
+
+    if (distanceError < -MESH_DISTANCE_TOLERANCE_STUDS) {
+        return {
+            type: 'collision',
+            actualDistance,
+            requiredDistance: pitchDistance,
+            distanceError
+        };
+    }
+
+    const outerDistance = getPhysicalRadius(gearA) + getPhysicalRadius(gearB);
+    if (actualDistance < outerDistance - COLLISION_CLEARANCE_STUDS) {
+        return {
+            type: 'collision',
+            actualDistance,
+            requiredDistance: outerDistance,
+            distanceError
+        };
+    }
+
+    return {
+        type: 'independent',
+        actualDistance,
+        requiredDistance: pitchDistance,
+        distanceError
+    };
+}
+
+function toothPhaseAtContact(item, contactAngle) {
+    const pitch = getToothPitchDegrees(item.gear);
+    if (!pitch) return 0;
+    const angle = Number.isFinite(item.gear.angle) ? item.gear.angle : 0;
+    return normalizeModulo((contactAngle - angle) / pitch, 1);
+}
+
+function gearPairPhaseErrorCycles(itemA, itemB) {
+    if (!isToothedGear(itemA.gear) || !isToothedGear(itemB.gear)) return 0;
+
+    const contactAtoB = contactAngleDegrees(itemA, itemB);
+    const phaseA = toothPhaseAtContact(itemA, contactAtoB);
+    const phaseB = toothPhaseAtContact(itemB, contactAtoB + 180);
+    const combined = normalizeModulo(phaseA + phaseB, 1);
+
+    return circularDistance(combined, 0.5, 1);
+}
+
+function getGearAtLayer(beamIndex, holeIndex, layer) {
+    let gear = boardState[beamIndex] ? boardState[beamIndex][holeIndex] : null;
+    let currentLayer = 0;
+    while (gear && currentLayer < layer) {
+        gear = gear.nextLayer;
+        currentLayer++;
+    }
+    return currentLayer === layer ? gear : null;
+}
+
+function collectPlacedGearsAtLayer(layer, excludedBeam = -1, excludedHole = -1) {
+    const result = [];
+    for (let beamIndex = 0; beamIndex < beamCount; beamIndex++) {
+        if (!boardState[beamIndex]) continue;
+        for (let holeIndex = 0; holeIndex < 11; holeIndex++) {
+            if (beamIndex === excludedBeam && holeIndex === excludedHole) continue;
+            const gear = getGearAtLayer(beamIndex, holeIndex, layer);
+            if (gear) result.push({ beamIndex, holeIndex, layer, gear });
+        }
+    }
+    return result;
+}
+
+function solveCandidateGearAngle(candidate, meshNeighbors) {
+    if (!isToothedGear(candidate.gear)) {
+        return { ok: true, angle: 0 };
+    }
+
+    const pitch = getToothPitchDegrees(candidate.gear);
+    const stackHead = boardState[candidate.beamIndex]
+        ? boardState[candidate.beamIndex][candidate.holeIndex]
+        : null;
+    const axleAngle = stackHead && Number.isFinite(stackHead.angle) ? stackHead.angle : null;
+
+    const requestedAngles = meshNeighbors.map(neighbor => {
+        const candidateToNeighbor = contactAngleDegrees(candidate, neighbor);
+        const neighborContactAngle = candidateToNeighbor + 180;
+        const neighborPhase = toothPhaseAtContact(neighbor, neighborContactAngle);
+        const targetCandidatePhase = normalizeModulo(0.5 - neighborPhase, 1);
+        return normalizeModulo(candidateToNeighbor - targetCandidatePhase * pitch, pitch);
+    });
+
+    if (axleAngle !== null) {
+        const axlePhaseAngle = normalizeModulo(axleAngle, pitch);
+        const conflictsWithAxle = requestedAngles.some(angle =>
+            circularDistance(angle, axlePhaseAngle, pitch) > pitch * TOOTH_PHASE_TOLERANCE_CYCLES
+        );
+
+        if (conflictsWithAxle) {
+            return { ok: false, reason: 'phase-conflict' };
+        }
+
+        candidate.gear.angle = axleAngle;
+        const phaseConflict = meshNeighbors.some(neighbor =>
+            gearPairPhaseErrorCycles(candidate, neighbor) > TOOTH_PHASE_TOLERANCE_CYCLES
+        );
+        return phaseConflict
+            ? { ok: false, reason: 'phase-conflict' }
+            : { ok: true, angle: axleAngle };
+    }
+
+    if (requestedAngles.length === 0) {
+        return { ok: true, angle: 0 };
+    }
+
+    const radians = requestedAngles.map(angle => (angle / pitch) * Math.PI * 2);
+    const x = radians.reduce((sum, angle) => sum + Math.cos(angle), 0);
+    const y = radians.reduce((sum, angle) => sum + Math.sin(angle), 0);
+    if (Math.hypot(x, y) < 1e-6) {
+        return { ok: false, reason: 'phase-conflict' };
+    }
+
+    const meanAngle = normalizeModulo(Math.atan2(y, x) / (Math.PI * 2) * pitch, pitch);
+    const hasConstraintConflict = requestedAngles.some(angle =>
+        circularDistance(angle, meanAngle, pitch) > pitch * TOOTH_PHASE_TOLERANCE_CYCLES
+    );
+    if (hasConstraintConflict) {
+        return { ok: false, reason: 'phase-conflict' };
+    }
+
+    candidate.gear.angle = meanAngle;
+    const phaseConflict = meshNeighbors.some(neighbor =>
+        gearPairPhaseErrorCycles(candidate, neighbor) > TOOTH_PHASE_TOLERANCE_CYCLES
+    );
+    return phaseConflict
+        ? { ok: false, reason: 'phase-conflict' }
+        : { ok: true, angle: meanAngle };
+}
+
+function analyzeGearPlacement(beamIndex, holeIndex, gearTemplate, layer = 0) {
+    const candidateGear = {
+        ...gearTemplate,
+        angle: 0
+    };
+    const candidate = { beamIndex, holeIndex, layer, gear: candidateGear };
+    const neighbors = collectPlacedGearsAtLayer(layer, beamIndex, holeIndex);
+    const meshNeighbors = [];
+
+    for (const neighbor of neighbors) {
+        const relation = classifyGearPair(candidate, neighbor);
+        if (relation.type === 'collision') {
+            return {
+                ok: false,
+                reason: 'collision',
+                neighbor,
+                relation
+            };
+        }
+        if (relation.type === 'mesh') {
+            meshNeighbors.push(neighbor);
+        }
+    }
+
+    const angleResult = solveCandidateGearAngle(candidate, meshNeighbors);
+    if (!angleResult.ok) return angleResult;
+
+    return {
+        ok: true,
+        angle: Number.isFinite(angleResult.angle) ? angleResult.angle : 0,
+        meshNeighbors
+    };
+}
+
+function showPlacementRejection(result) {
+    const messageKey = result && result.reason === 'phase-conflict'
+        ? 'placementPhaseConflict'
+        : 'placementCollision';
+    showModal(t(messageKey), t('cannotPlacePart'));
+}
+
+function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
+    return {
+        ...JSON.parse(JSON.stringify(gearTemplate)),
+        angle: Number.isFinite(angle) ? angle : 0,
+        velocity: 0,
+        beamIndex,
+        holeIndex,
+        pointers: gearTemplate.pointers ? [...gearTemplate.pointers] : undefined
+    };
+}
+
 // --- INTERACTION ---
 
         function handleHoleClick(beamIndex, holeIndex) {
-            // Motor mode: place motor on this hole
             if (motorMode) {
-                // Remove motor from previous position if any
                 motorPosition = { beamIndex, holeIndex };
                 motorMode = false;
 
-                // Update UI
                 const btn = document.getElementById('motorModeBtn');
                 btn.classList.remove('active');
                 btn.innerHTML = '⚡ Motor Yerleştir';
@@ -20,9 +291,7 @@
                 return;
             }
 
-            // Delete mode: remove gear if exists
             if (deleteMode) {
-                // Also remove motor if clicking on motor position
                 if (motorPosition && motorPosition.beamIndex === beamIndex && motorPosition.holeIndex === holeIndex) {
                     motorPosition = null;
                     renderBeam();
@@ -34,7 +303,6 @@
                 if (boardState[beamIndex][holeIndex] !== null) {
                     const gear = boardState[beamIndex][holeIndex];
                     if (gear.nextLayer) {
-                        // Remove topmost layer
                         let current = gear;
                         while (current.nextLayer && current.nextLayer.nextLayer) {
                             current = current.nextLayer;
@@ -52,111 +320,86 @@
                 return;
             }
 
-            // Tooth Mode
             if (toothMode) {
-                // Add Pointer Overlay
-                // Assuming addGear handles 'tooth' type logic to toggle pointer
-                // Create a fake template with required properties for rendering
                 const template = { type: 'tooth', teeth: 1, color: '#FF7F00', radius: 0.5 };
                 addGear(beamIndex, holeIndex, template);
                 return;
             }
 
-            // Add Gear
             if (selectedGearIndex === null) {
                 updateStatus(t('selectGearFirst'), true);
                 return;
             }
 
-            // Multi-Layer Support: If hole occupied, try adding to next layer
-            if (boardState[beamIndex][holeIndex] !== null) {
-                let current = boardState[beamIndex][holeIndex];
+            const template = GEARS[selectedGearIndex];
+            const existing = boardState[beamIndex][holeIndex];
+
+            if (existing !== null) {
+                let current = existing;
                 let layerCount = 1;
                 while (current.nextLayer) {
                     current = current.nextLayer;
                     layerCount++;
                 }
 
-                // Limit layers
                 if (layerCount >= 2) {
-                    updateStatus('Bu delik dolu (Maksimum 2 katman).');
+                    showModal(t('maxGearLayers'), t('cannotPlacePart'));
                     return;
                 }
 
-                // Add to next layer with angle offset to avoid visual overlap
-                const template = GEARS[selectedGearIndex];
-                // Deep copy
-                current.nextLayer = JSON.parse(JSON.stringify(template));
-                // Offset angle by half tooth pitch (~22.5 degrees) from the layer below
-                const offsetAngle = template.teeth > 0 ? (180 / template.teeth) : 22.5;
-                current.nextLayer.angle = (current.angle + offsetAngle) % 360;
+                const placement = analyzeGearPlacement(beamIndex, holeIndex, template, layerCount);
+                if (!placement.ok) {
+                    showPlacementRejection(placement);
+                    return;
+                }
+
+                current.nextLayer = instantiatePlacedGear(
+                    template,
+                    beamIndex,
+                    holeIndex,
+                    placement.angle
+                );
 
                 renderBeam();
                 updateStatus(t('layerAdded'));
-            } else {
-                addGear(beamIndex, holeIndex, GEARS[selectedGearIndex]);
+                return;
             }
+
+            addGear(beamIndex, holeIndex, template);
         }
 
         function addGear(beamIndex, holeIndex, gearTemplate) {
-            // Check if adding a pointer (Tooth) overlay to an existing gear
             const existingGear = boardState[beamIndex][holeIndex];
-            if (gearTemplate.type === 'tooth' && existingGear) {
+
+            if (gearTemplate.type === 'tooth') {
+                if (!existingGear) {
+                    showModal(t('toothNeedsGear'), t('cannotPlacePart'));
+                    return false;
+                }
+
                 if (!existingGear.pointers) existingGear.pointers = [];
-                // Prevent duplicate pointers at same angle
                 if (!existingGear.pointers.includes(currentPointerAngle)) {
                     existingGear.pointers.push(currentPointerAngle);
                     renderBeam();
                 }
-                return;
+                return true;
             }
 
-            // Auto-align angle with neighbors for meshing
-            let initialAngle = 0;
-            const halfPitch = 180 / gearTemplate.teeth;
-
-            // Find any meshing neighbor by scanning all gears
-            let foundNeighbor = null;
-
-            for (let bIdx = 0; bIdx < beamCount; bIdx++) {
-                for (let hIdx = 0; hIdx < 11; hIdx++) {
-                    if (bIdx === beamIndex && hIdx === holeIndex) continue;
-                    if (boardState[bIdx] && boardState[bIdx][hIdx]) {
-                        const neighbor = boardState[bIdx][hIdx];
-                        const beamDiff = Math.abs(bIdx - beamIndex);
-                        const holeDiff = Math.abs(hIdx - holeIndex);
-                        const dist = Math.sqrt(beamDiff * beamDiff + holeDiff * holeDiff);
-                        const radiiSum = gearTemplate.radius + neighbor.radius;
-                        const tolerance = radiiSum * 0.20; // 20% tolerance
-
-                        if (Math.abs(dist - radiiSum) <= tolerance) {
-                            foundNeighbor = neighbor;
-                            break;
-                        }
-                    }
-                }
-                if (foundNeighbor) break;
+            const placement = analyzeGearPlacement(beamIndex, holeIndex, gearTemplate, 0);
+            if (!placement.ok) {
+                showPlacementRejection(placement);
+                return false;
             }
 
-            if (foundNeighbor) {
-                const neighborHalfPitch = 180 / foundNeighbor.teeth;
-                // Offset by neighbor's half pitch for proper meshing (tooth into gap)
-                initialAngle = foundNeighbor.angle + neighborHalfPitch;
-            }
+            boardState[beamIndex][holeIndex] = instantiatePlacedGear(
+                gearTemplate,
+                beamIndex,
+                holeIndex,
+                placement.angle
+            );
 
-            // Normalize angle
-            initialAngle = ((initialAngle % 360) + 360) % 360;
-
-            // New gear instance (Ensure pointers array is copied, not referenced)
-            boardState[beamIndex][holeIndex] = {
-                ...gearTemplate,
-                pointers: gearTemplate.pointers ? [...gearTemplate.pointers] : undefined,
-                angle: initialAngle,
-                velocity: 0,
-                beamIndex: beamIndex,
-                holeIndex: holeIndex
-            };
             renderBeam();
+            return true;
         }
 
         function removeGear(beamIndex, holeIndex) {
@@ -180,112 +423,119 @@
 
         function validateAndCalculate() {
             const connections = [];
-            gearConnectionsMap = {}; // Reset global map for manual rotation
+            gearConnectionsMap = {};
             let isValid = true;
             let statusMsg = t('gearsPlaced');
 
-            // Collect all gears with their positions (Multi-Layer)
             const allGears = [];
             for (let beamIdx = 0; beamIdx < beamCount; beamIdx++) {
-                if (boardState[beamIdx]) {
-                    for (let holeIdx = 0; holeIdx < 11; holeIdx++) {
-                        let g = boardState[beamIdx][holeIdx];
-                        // Check if this hole has the motor
-                        const isMotorPos = motorPosition &&
-                            motorPosition.beamIndex === beamIdx &&
-                            motorPosition.holeIndex === holeIdx;
+                if (!boardState[beamIdx]) continue;
+                for (let holeIdx = 0; holeIdx < 11; holeIdx++) {
+                    let gear = boardState[beamIdx][holeIdx];
+                    const isMotorPos = motorPosition &&
+                        motorPosition.beamIndex === beamIdx &&
+                        motorPosition.holeIndex === holeIdx;
 
-                        let layer = 0;
-                        while (g) {
-                            allGears.push({
-                                beamIndex: beamIdx,
-                                holeIndex: holeIdx,
-                                gear: g,
-                                layer: layer,
-                                isMotor: isMotorPos
-                            });
-                            g = g.nextLayer;
-                            layer++;
-                        }
+                    let layer = 0;
+                    while (gear) {
+                        allGears.push({
+                            beamIndex: beamIdx,
+                            holeIndex: holeIdx,
+                            gear,
+                            layer,
+                            isMotor: isMotorPos
+                        });
+                        gear = gear.nextLayer;
+                        layer++;
                     }
                 }
             }
 
-            // Check connections check (Dynamic Distance)
             for (let i = 0; i < allGears.length; i++) {
                 for (let j = i + 1; j < allGears.length; j++) {
                     const gearA = allGears[i];
                     const gearB = allGears[j];
-
                     if (gearA.layer !== gearB.layer) continue;
 
-                    // Support Vertical & Horizontal & Diagonal Connections
-                    // Calculate Euclidean Distance in Studs
-                    // LEGO Technic: h=1.19 creates near perfect vertical stack for 4-beam gap (36+40)
-                    const BEAM_VERTICAL_SPACING = 1.19; // Studs between beam hole centers vertically
-                    const beamDist = Math.abs(gearA.beamIndex - gearB.beamIndex) * BEAM_VERTICAL_SPACING;
-                    const holeDist = Math.abs(gearA.holeIndex - gearB.holeIndex);
-                    const actualDist = Math.sqrt(beamDist * beamDist + holeDist * holeDist);
+                    const relation = classifyGearPair(gearA, gearB);
 
-                    const requiredDist = gearA.gear.radius + gearB.gear.radius;
-
-                    // Bush Logic: No Mesh, Only Collision
-                    if (gearA.gear.type === 'bush' || gearB.gear.type === 'bush') {
-                        if (requiredDist > actualDist + 0.15) {
-                            connections.push({
-                                fromBeam: gearA.beamIndex, from: gearA.holeIndex,
-                                toBeam: gearB.beamIndex, to: gearB.holeIndex,
-                                type: 'collision', layer: gearA.layer
-                            });
-                            isValid = false;
-                            statusMsg = t('collision', gearA.beamIndex + 1, gearB.beamIndex + 1);
-                        }
+                    if (relation.type === 'collision') {
+                        connections.push({
+                            fromBeam: gearA.beamIndex,
+                            from: gearA.holeIndex,
+                            toBeam: gearB.beamIndex,
+                            to: gearB.holeIndex,
+                            type: 'collision',
+                            layer: gearA.layer
+                        });
+                        isValid = false;
+                        statusMsg = t('placementCollision');
                         continue;
                     }
 
-                    // Gear Logic: Mesh or Collision
-                    // Valid mesh tolerance: 0.22 (robust tolerance for all diagonal approximations)
-                    const MESH_TOLERANCE = 0.22;
-                    if (Math.abs(actualDist - requiredDist) < MESH_TOLERANCE) {
-                        connections.push({
-                            fromBeam: gearA.beamIndex, from: gearA.holeIndex,
-                            toBeam: gearB.beamIndex, to: gearB.holeIndex,
-                            type: 'valid', layer: gearA.layer
-                        });
+                    if (relation.type !== 'mesh') continue;
 
-                        // Populate Global Map for Manual Rotation (Drag)
-                        const keyA = `${gearA.beamIndex}_${gearA.holeIndex}`;
-                        const keyB = `${gearB.beamIndex}_${gearB.holeIndex}`;
-                        if (!gearConnectionsMap[keyA]) gearConnectionsMap[keyA] = [];
-                        if (!gearConnectionsMap[keyB]) gearConnectionsMap[keyB] = [];
-                        const ratio = -(gearA.gear.teeth / gearB.gear.teeth);
-                        if (!gearConnectionsMap[keyA].find(x => x.k === keyB)) gearConnectionsMap[keyA].push({ k: keyB, b: gearB.beamIndex, h: gearB.holeIndex, ratio: ratio });
-                        if (!gearConnectionsMap[keyB].find(x => x.k === keyA)) gearConnectionsMap[keyB].push({ k: keyA, b: gearA.beamIndex, h: gearA.holeIndex, ratio: 1 / ratio });
-
-                    } else if (requiredDist > actualDist + MESH_TOLERANCE) {
-                        // Only report collision if they OVERLAP significantly
+                    const phaseError = gearPairPhaseErrorCycles(gearA, gearB);
+                    if (phaseError > TOOTH_PHASE_TOLERANCE_CYCLES) {
                         connections.push({
-                            fromBeam: gearA.beamIndex, from: gearA.holeIndex,
-                            toBeam: gearB.beamIndex, to: gearB.holeIndex,
-                            type: 'collision', layer: gearA.layer
+                            fromBeam: gearA.beamIndex,
+                            from: gearA.holeIndex,
+                            toBeam: gearB.beamIndex,
+                            to: gearB.holeIndex,
+                            type: 'phase-conflict',
+                            layer: gearA.layer
                         });
                         isValid = false;
-                        statusMsg = `⚠️ Çarpışma: (K${gearA.beamIndex + 1}-K${gearB.beamIndex + 1})`;
+                        statusMsg = t('placementPhaseConflict');
+                        continue;
+                    }
+
+                    connections.push({
+                        fromBeam: gearA.beamIndex,
+                        from: gearA.holeIndex,
+                        toBeam: gearB.beamIndex,
+                        to: gearB.holeIndex,
+                        type: 'valid',
+                        layer: gearA.layer
+                    });
+
+                    const keyA = `${gearA.beamIndex}_${gearA.holeIndex}`;
+                    const keyB = `${gearB.beamIndex}_${gearB.holeIndex}`;
+                    if (!gearConnectionsMap[keyA]) gearConnectionsMap[keyA] = [];
+                    if (!gearConnectionsMap[keyB]) gearConnectionsMap[keyB] = [];
+
+                    const ratio = -(gearA.gear.teeth / gearB.gear.teeth);
+                    if (!gearConnectionsMap[keyA].find(x => x.k === keyB)) {
+                        gearConnectionsMap[keyA].push({
+                            k: keyB,
+                            b: gearB.beamIndex,
+                            h: gearB.holeIndex,
+                            ratio
+                        });
+                    }
+                    if (!gearConnectionsMap[keyB].find(x => x.k === keyA)) {
+                        gearConnectionsMap[keyB].push({
+                            k: keyA,
+                            b: gearA.beamIndex,
+                            h: gearA.holeIndex,
+                            ratio: 1 / ratio
+                        });
                     }
                 }
             }
 
-            // Speed Propagation (graph based)
-            // 1. Reset
             for (let b = 0; b < beamCount; b++) {
-                if (boardState[b]) for (let h = 0; h < 11; h++) {
-                    let g = boardState[b][h];
-                    while (g) { g.velocity = 0; g = g.nextLayer; }
+                if (!boardState[b]) continue;
+                for (let h = 0; h < 11; h++) {
+                    let gear = boardState[b][h];
+                    while (gear) {
+                        gear.velocity = 0;
+                        gear = gear.nextLayer;
+                    }
                 }
             }
 
-            // 2. BFS from Motors
-            let queue = [];
+            const queue = [];
             allGears.forEach(item => {
                 if (item.isMotor) {
                     item.gear.velocity = 1;
@@ -293,77 +543,77 @@
                 }
             });
 
-            let visited = new Set();
-            queue.forEach(q => visited.add(`${q.beamIndex}-${q.holeIndex}-${q.layer}`));
+            const visited = new Set();
+            queue.forEach(item => visited.add(`${item.beamIndex}-${item.holeIndex}-${item.layer}`));
 
             let head = 0;
             while (head < queue.length) {
                 const current = queue[head++];
-                const cv = current.gear.velocity;
+                const currentVelocity = current.gear.velocity;
 
-                // A. Co-axial (Axle Lock)
-                const stackHead = boardState[current.beamIndex][current.holeIndex];
-                let s = stackHead;
-                let l = 0;
-                while (s) {
-                    const key = `${current.beamIndex}-${current.holeIndex}-${l}`;
+                let stackGear = boardState[current.beamIndex][current.holeIndex];
+                let stackLayer = 0;
+                while (stackGear) {
+                    const key = `${current.beamIndex}-${current.holeIndex}-${stackLayer}`;
                     if (!visited.has(key)) {
-                        s.velocity = cv;
+                        stackGear.velocity = currentVelocity;
                         visited.add(key);
-                        queue.push({ beamIndex: current.beamIndex, holeIndex: current.holeIndex, gear: s, layer: l });
+                        queue.push({
+                            beamIndex: current.beamIndex,
+                            holeIndex: current.holeIndex,
+                            gear: stackGear,
+                            layer: stackLayer
+                        });
                     }
-                    s = s.nextLayer;
-                    l++;
+                    stackGear = stackGear.nextLayer;
+                    stackLayer++;
                 }
 
-                // B. Mesh Connections
-                connections.forEach(conn => {
-                    if (conn.type !== 'valid' || conn.layer !== current.layer) return;
+                connections.forEach(connection => {
+                    if (connection.type !== 'valid' || connection.layer !== current.layer) return;
 
-                    let neighborKey = '';
-                    let targetBeam = -1, targetHole = -1;
+                    let targetBeam = -1;
+                    let targetHole = -1;
 
-                    if (conn.fromBeam === current.beamIndex && conn.from === current.holeIndex) {
-                        targetBeam = conn.toBeam; targetHole = conn.to;
-                    } else if (conn.toBeam === current.beamIndex && conn.to === current.holeIndex) {
-                        targetBeam = conn.fromBeam; targetHole = conn.from;
+                    if (connection.fromBeam === current.beamIndex && connection.from === current.holeIndex) {
+                        targetBeam = connection.toBeam;
+                        targetHole = connection.to;
+                    } else if (connection.toBeam === current.beamIndex && connection.to === current.holeIndex) {
+                        targetBeam = connection.fromBeam;
+                        targetHole = connection.from;
                     }
 
-                    if (targetBeam !== -1) {
-                        // Find gear object
-                        let tStack = boardState[targetBeam][targetHole];
-                        let tGear = null;
-                        let i = 0;
-                        while (tStack) { if (i === current.layer) { tGear = tStack; break; } tStack = tStack.nextLayer; i++; }
+                    if (targetBeam === -1) return;
 
-                        if (tGear) {
-                            neighborKey = `${targetBeam}-${targetHole}-${current.layer}`;
-                            if (!visited.has(neighborKey)) {
-                                const r1 = current.gear.radius;
-                                const r2 = tGear.radius;
-                                tGear.velocity = cv * -(r1 / r2);
-                                visited.add(neighborKey);
-                                queue.push({ beamIndex: targetBeam, holeIndex: targetHole, gear: tGear, layer: current.layer });
-                            }
-                        }
-                    }
+                    const targetGear = getGearAtLayer(targetBeam, targetHole, current.layer);
+                    if (!targetGear) return;
+
+                    const neighborKey = `${targetBeam}-${targetHole}-${current.layer}`;
+                    if (visited.has(neighborKey)) return;
+
+                    targetGear.velocity = currentVelocity * -(current.gear.teeth / targetGear.teeth);
+                    visited.add(neighborKey);
+                    queue.push({
+                        beamIndex: targetBeam,
+                        holeIndex: targetHole,
+                        gear: targetGear,
+                        layer: current.layer
+                    });
                 });
             }
 
             renderConnections(connections);
 
-            const hasGears = allGears.length > 0;
-            if (!hasGears) {
-                updateStatus("Simülasyon hazır.", false);
+            if (allGears.length === 0) {
+                updateStatus('Simülasyon hazır.', false);
             } else if (!isValid) {
                 updateStatus(statusMsg, true);
-            } else if (connections.length > 0) {
-                updateStatus(`✅ Bağlantı aktif. Mesh hesabı yapıldı.`);
+            } else if (connections.some(connection => connection.type === 'valid')) {
+                updateStatus('✅ Bağlantı aktif. Mesh hesabı yapıldı.');
             } else {
                 updateStatus(t('gearsIndependent'));
             }
 
-            // Always update stats UI when board changes
             renderSimulationStats();
             renderSideView();
 
@@ -685,7 +935,7 @@
             if (!layer) return;
 
             layer.innerHTML = connections.map(conn => {
-                const isError = conn.type === 'collision';
+                const isError = conn.type !== 'valid';
 
                 // Calculate position relative to hole container origin (left: 20px)
                 // Hole center X = index * STUD_SPACING
