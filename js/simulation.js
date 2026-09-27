@@ -2,13 +2,7 @@
 
 // --- LEGO GEAR PLACEMENT CONSTRAINTS ---
 // Distances are expressed in LEGO stud units.
-const BEAM_VERTICAL_SPACING_STUDS = 1.2;
-const MESH_DISTANCE_TOLERANCE_STUDS = 0.065;
-const TOOTH_PHASE_TOLERANCE_CYCLES = 0.06;
-const GEAR_ADDENDUM_STUDS = 0.125;
-const BUSH_COLLISION_RADIUS_STUDS = 0.46;
-const COLLISION_CLEARANCE_STUDS = 0.015;
-
+const BEAM_VERTICAL_SPACING_STUDS = LEGO_GEOMETRY.BRICK_HEIGHT_STUDS;
 function normalizeModulo(value, period) {
     if (!Number.isFinite(value) || !Number.isFinite(period) || period <= 0) return 0;
     return ((value % period) + period) % period;
@@ -17,26 +11,6 @@ function normalizeModulo(value, period) {
 function circularDistance(valueA, valueB, period) {
     const delta = Math.abs(normalizeModulo(valueA - valueB, period));
     return Math.min(delta, period - delta);
-}
-
-function isToothedGear(gear) {
-    return !!gear && gear.type !== 'bush' && Number.isFinite(gear.teeth) && gear.teeth > 0;
-}
-
-function getPitchRadius(gear) {
-    if (!isToothedGear(gear)) return null;
-    return gear.teeth / 16;
-}
-
-function getPhysicalRadius(gear) {
-    if (!gear) return 0;
-    if (gear.type === 'bush') return BUSH_COLLISION_RADIUS_STUDS;
-    const pitchRadius = getPitchRadius(gear);
-    return pitchRadius === null ? 0 : pitchRadius + GEAR_ADDENDUM_STUDS;
-}
-
-function getToothPitchDegrees(gear) {
-    return isToothedGear(gear) ? 360 / gear.teeth : null;
 }
 
 function gearCenterPosition(item) {
@@ -118,7 +92,11 @@ function classifyGearPair(itemA, itemB) {
 function toothPhaseAtContact(item, contactAngle) {
     const pitch = getToothPitchDegrees(item.gear);
     if (!pitch) return 0;
-    const angle = Number.isFinite(item.gear.angle) ? item.gear.angle : 0;
+
+    const angle = item.isCandidate
+        ? (Number.isFinite(item.gear.angle) ? item.gear.angle : 0)
+        : getAxleAngle(item.beamIndex, item.holeIndex);
+
     return normalizeModulo((contactAngle - angle) / pitch, 1);
 }
 
@@ -156,6 +134,127 @@ function collectPlacedGearsAtLayer(layer, excludedBeam = -1, excludedHole = -1) 
     return result;
 }
 
+function collectBoardGearItems(extraItem = null) {
+    const result = [];
+
+    for (let beamIndex = 0; beamIndex < beamCount; beamIndex++) {
+        if (!boardState[beamIndex]) continue;
+
+        for (let holeIndex = 0; holeIndex < 11; holeIndex++) {
+            let gear = boardState[beamIndex][holeIndex];
+            let layer = 0;
+
+            while (gear) {
+                result.push({
+                    beamIndex,
+                    holeIndex,
+                    layer,
+                    gear,
+                    isCandidate: false
+                });
+                gear = gear.nextLayer;
+                layer++;
+            }
+        }
+    }
+
+    if (extraItem) result.push(extraItem);
+    return result;
+}
+
+function buildMechanicalConnections(allGears) {
+    const connections = [];
+    let isValid = true;
+    let statusKey = 'gearsPlaced';
+
+    for (let i = 0; i < allGears.length; i++) {
+        for (let j = i + 1; j < allGears.length; j++) {
+            const gearA = allGears[i];
+            const gearB = allGears[j];
+            if (gearA.layer !== gearB.layer) continue;
+
+            const relation = classifyGearPair(gearA, gearB);
+
+            if (relation.type === 'collision') {
+                connections.push({
+                    fromBeam: gearA.beamIndex,
+                    from: gearA.holeIndex,
+                    toBeam: gearB.beamIndex,
+                    to: gearB.holeIndex,
+                    type: 'collision',
+                    layer: gearA.layer
+                });
+                isValid = false;
+                statusKey = 'placementCollision';
+                continue;
+            }
+
+            if (relation.type !== 'mesh') continue;
+
+            const phaseError = gearPairPhaseErrorCycles(gearA, gearB);
+            if (phaseError > TOOTH_PHASE_TOLERANCE_CYCLES) {
+                connections.push({
+                    fromBeam: gearA.beamIndex,
+                    from: gearA.holeIndex,
+                    toBeam: gearB.beamIndex,
+                    to: gearB.holeIndex,
+                    type: 'phase-conflict',
+                    layer: gearA.layer
+                });
+                isValid = false;
+                statusKey = 'placementPhaseConflict';
+                continue;
+            }
+
+            connections.push({
+                fromBeam: gearA.beamIndex,
+                from: gearA.holeIndex,
+                toBeam: gearB.beamIndex,
+                to: gearB.holeIndex,
+                type: 'valid',
+                layer: gearA.layer,
+                ratio: -(gearA.gear.teeth / gearB.gear.teeth)
+            });
+        }
+    }
+
+    return { connections, isValid, statusKey };
+}
+
+function markKinematicConflictConnections(ratioGraph) {
+    if (!ratioGraph || ratioGraph.ok) return;
+
+    const conflictConnections = new Set();
+    ratioGraph.conflicts.forEach(conflict => {
+        const connection = conflict &&
+            conflict.source &&
+            conflict.source.connection;
+        if (connection) conflictConnections.add(connection);
+    });
+
+    conflictConnections.forEach(connection => {
+        connection.type = 'kinematic-conflict';
+    });
+}
+
+function analyzeGearNetworkForItems(allGears) {
+    const mechanical = buildMechanicalConnections(allGears);
+    const ratioGraph = analyzeRatioGraph(buildAxleRatioEdges(mechanical.connections));
+
+    if (!ratioGraph.ok) {
+        markKinematicConflictConnections(ratioGraph);
+        mechanical.isValid = false;
+        mechanical.statusKey = 'kinematicConflict';
+    }
+
+    return {
+        connections: mechanical.connections,
+        isValid: mechanical.isValid,
+        statusKey: mechanical.statusKey,
+        ratioGraph
+    };
+}
+
 function solveCandidateGearAngle(candidate, meshNeighbors) {
     if (!isToothedGear(candidate.gear)) {
         return { ok: true, angle: 0 };
@@ -165,7 +264,7 @@ function solveCandidateGearAngle(candidate, meshNeighbors) {
     const stackHead = boardState[candidate.beamIndex]
         ? boardState[candidate.beamIndex][candidate.holeIndex]
         : null;
-    const axleAngle = stackHead && Number.isFinite(stackHead.angle) ? stackHead.angle : null;
+    const axleAngle = stackHead ? getAxleAngle(candidate.beamIndex, candidate.holeIndex) : null;
 
     const requestedAngles = meshNeighbors.map(neighbor => {
         const candidateToNeighbor = contactAngleDegrees(candidate, neighbor);
@@ -227,7 +326,7 @@ function analyzeGearPlacement(beamIndex, holeIndex, gearTemplate, layer = 0) {
         ...gearTemplate,
         angle: 0
     };
-    const candidate = { beamIndex, holeIndex, layer, gear: candidateGear };
+    const candidate = { beamIndex, holeIndex, layer, gear: candidateGear, isCandidate: true };
     const neighbors = collectPlacedGearsAtLayer(layer, beamIndex, holeIndex);
     const meshNeighbors = [];
 
@@ -249,25 +348,43 @@ function analyzeGearPlacement(beamIndex, holeIndex, gearTemplate, layer = 0) {
     const angleResult = solveCandidateGearAngle(candidate, meshNeighbors);
     if (!angleResult.ok) return angleResult;
 
+    candidateGear.angle = Number.isFinite(angleResult.angle) ? angleResult.angle : 0;
+
+    const previewNetwork = analyzeGearNetworkForItems(
+        collectBoardGearItems(candidate)
+    );
+    if (!previewNetwork.ratioGraph.ok) {
+        return {
+            ok: false,
+            reason: 'kinematic-conflict',
+            ratioGraph: previewNetwork.ratioGraph
+        };
+    }
+
     return {
         ok: true,
-        angle: Number.isFinite(angleResult.angle) ? angleResult.angle : 0,
+        angle: candidateGear.angle,
         meshNeighbors
     };
 }
 
 function showPlacementRejection(result) {
-    const messageKey = result && result.reason === 'phase-conflict'
-        ? 'placementPhaseConflict'
-        : 'placementCollision';
+    let messageKey = 'placementCollision';
+
+    if (result && result.reason === 'phase-conflict') {
+        messageKey = 'placementPhaseConflict';
+    } else if (result && result.reason === 'kinematic-conflict') {
+        messageKey = 'kinematicConflict';
+    }
+
     showModal(t(messageKey), t('cannotPlacePart'));
 }
 
 function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
     return {
         ...JSON.parse(JSON.stringify(gearTemplate)),
-        angle: Number.isFinite(angle) ? angle : 0,
-        velocity: 0,
+        angle: Number.isFinite(angle) ? angle : getAxleAngle(beamIndex, holeIndex),
+        velocity: getAxleVelocity(beamIndex, holeIndex),
         beamIndex,
         holeIndex,
         pointers: gearTemplate.pointers ? [...gearTemplate.pointers] : undefined
@@ -359,6 +476,7 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
                     holeIndex,
                     placement.angle
                 );
+                setAxleAngle(beamIndex, holeIndex, placement.angle);
 
                 renderBeam();
                 updateStatus(t('layerAdded'));
@@ -397,6 +515,7 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
                 holeIndex,
                 placement.angle
             );
+            setAxleAngle(beamIndex, holeIndex, placement.angle);
 
             renderBeam();
             return true;
@@ -421,185 +540,150 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
 
         // --- PHYSICS & LOGIC ---
 
-        function validateAndCalculate() {
-            const connections = [];
-            gearConnectionsMap = {};
-            let isValid = true;
-            let statusMsg = t('gearsPlaced');
+        function axleKey(beamIndex, holeIndex) {
+            return `${beamIndex}_${holeIndex}`;
+        }
 
-            const allGears = [];
-            for (let beamIdx = 0; beamIdx < beamCount; beamIdx++) {
-                if (!boardState[beamIdx]) continue;
-                for (let holeIdx = 0; holeIdx < 11; holeIdx++) {
-                    let gear = boardState[beamIdx][holeIdx];
-                    const isMotorPos = motorPosition &&
-                        motorPosition.beamIndex === beamIdx &&
-                        motorPosition.holeIndex === holeIdx;
+        function buildAxleRatioEdges(connections) {
+            return connections
+                .filter(connection => connection.type === 'valid' && Number.isFinite(connection.ratio))
+                .map(connection => ({
+                    from: axleKey(connection.fromBeam, connection.from),
+                    to: axleKey(connection.toBeam, connection.to),
+                    ratio: connection.ratio,
+                    connection
+                }));
+        }
 
-                    let layer = 0;
-                    while (gear) {
-                        allGears.push({
-                            beamIndex: beamIdx,
-                            holeIndex: holeIdx,
-                            gear,
-                            layer,
-                            isMotor: isMotorPos
-                        });
-                        gear = gear.nextLayer;
-                        layer++;
+        function analyzeRatioGraph(edges, tolerance = 1e-7) {
+            const adjacency = new Map();
+            const addEdge = (from, to, ratio, source) => {
+                if (!adjacency.has(from)) adjacency.set(from, []);
+                adjacency.get(from).push({ to, ratio, source });
+            };
+
+            edges.forEach(edge => {
+                addEdge(edge.from, edge.to, edge.ratio, edge);
+                addEdge(edge.to, edge.from, 1 / edge.ratio, edge);
+            });
+
+            const potentials = new Map();
+            const componentByNode = new Map();
+            const conflicts = [];
+            let componentId = 0;
+
+            for (const root of adjacency.keys()) {
+                if (potentials.has(root)) continue;
+                componentId++;
+                potentials.set(root, 1);
+                componentByNode.set(root, componentId);
+
+                const queue = [root];
+                let head = 0;
+                while (head < queue.length) {
+                    const current = queue[head++];
+                    const currentPotential = potentials.get(current);
+
+                    for (const edge of adjacency.get(current) || []) {
+                        const expected = currentPotential * edge.ratio;
+                        if (!potentials.has(edge.to)) {
+                            potentials.set(edge.to, expected);
+                            componentByNode.set(edge.to, componentId);
+                            queue.push(edge.to);
+                            continue;
+                        }
+
+                        const existing = potentials.get(edge.to);
+                        const scale = Math.max(1, Math.abs(existing), Math.abs(expected));
+                        if (Math.abs(existing - expected) > tolerance * scale) {
+                            conflicts.push({
+                                from: current,
+                                to: edge.to,
+                                existing,
+                                expected,
+                                source: edge.source
+                            });
+                        }
                     }
                 }
             }
 
-            for (let i = 0; i < allGears.length; i++) {
-                for (let j = i + 1; j < allGears.length; j++) {
-                    const gearA = allGears[i];
-                    const gearB = allGears[j];
-                    if (gearA.layer !== gearB.layer) continue;
+            return {
+                ok: conflicts.length === 0,
+                potentials,
+                componentByNode,
+                conflicts,
+                adjacency
+            };
+        }
 
-                    const relation = classifyGearPair(gearA, gearB);
-
-                    if (relation.type === 'collision') {
-                        connections.push({
-                            fromBeam: gearA.beamIndex,
-                            from: gearA.holeIndex,
-                            toBeam: gearB.beamIndex,
-                            to: gearB.holeIndex,
-                            type: 'collision',
-                            layer: gearA.layer
-                        });
-                        isValid = false;
-                        statusMsg = t('placementCollision');
-                        continue;
-                    }
-
-                    if (relation.type !== 'mesh') continue;
-
-                    const phaseError = gearPairPhaseErrorCycles(gearA, gearB);
-                    if (phaseError > TOOTH_PHASE_TOLERANCE_CYCLES) {
-                        connections.push({
-                            fromBeam: gearA.beamIndex,
-                            from: gearA.holeIndex,
-                            toBeam: gearB.beamIndex,
-                            to: gearB.holeIndex,
-                            type: 'phase-conflict',
-                            layer: gearA.layer
-                        });
-                        isValid = false;
-                        statusMsg = t('placementPhaseConflict');
-                        continue;
-                    }
-
-                    connections.push({
-                        fromBeam: gearA.beamIndex,
-                        from: gearA.holeIndex,
-                        toBeam: gearB.beamIndex,
-                        to: gearB.holeIndex,
-                        type: 'valid',
-                        layer: gearA.layer
-                    });
-
-                    const keyA = `${gearA.beamIndex}_${gearA.holeIndex}`;
-                    const keyB = `${gearB.beamIndex}_${gearB.holeIndex}`;
+        function populateGearConnectionsMap(connections) {
+            gearConnectionsMap = {};
+            connections
+                .filter(connection => connection.type === 'valid' && Number.isFinite(connection.ratio))
+                .forEach(connection => {
+                    const keyA = axleKey(connection.fromBeam, connection.from);
+                    const keyB = axleKey(connection.toBeam, connection.to);
                     if (!gearConnectionsMap[keyA]) gearConnectionsMap[keyA] = [];
                     if (!gearConnectionsMap[keyB]) gearConnectionsMap[keyB] = [];
 
-                    const ratio = -(gearA.gear.teeth / gearB.gear.teeth);
-                    if (!gearConnectionsMap[keyA].find(x => x.k === keyB)) {
+                    if (!gearConnectionsMap[keyA].find(item => item.k === keyB && item.layer === connection.layer)) {
                         gearConnectionsMap[keyA].push({
                             k: keyB,
-                            b: gearB.beamIndex,
-                            h: gearB.holeIndex,
-                            ratio
+                            b: connection.toBeam,
+                            h: connection.to,
+                            ratio: connection.ratio,
+                            layer: connection.layer
                         });
                     }
-                    if (!gearConnectionsMap[keyB].find(x => x.k === keyA)) {
+                    if (!gearConnectionsMap[keyB].find(item => item.k === keyA && item.layer === connection.layer)) {
                         gearConnectionsMap[keyB].push({
                             k: keyA,
-                            b: gearA.beamIndex,
-                            h: gearA.holeIndex,
-                            ratio: 1 / ratio
+                            b: connection.fromBeam,
+                            h: connection.from,
+                            ratio: 1 / connection.ratio,
+                            layer: connection.layer
                         });
                     }
-                }
-            }
-
-            for (let b = 0; b < beamCount; b++) {
-                if (!boardState[b]) continue;
-                for (let h = 0; h < 11; h++) {
-                    let gear = boardState[b][h];
-                    while (gear) {
-                        gear.velocity = 0;
-                        gear = gear.nextLayer;
-                    }
-                }
-            }
-
-            const queue = [];
-            allGears.forEach(item => {
-                if (item.isMotor) {
-                    item.gear.velocity = 1;
-                    queue.push(item);
-                }
-            });
-
-            const visited = new Set();
-            queue.forEach(item => visited.add(`${item.beamIndex}-${item.holeIndex}-${item.layer}`));
-
-            let head = 0;
-            while (head < queue.length) {
-                const current = queue[head++];
-                const currentVelocity = current.gear.velocity;
-
-                let stackGear = boardState[current.beamIndex][current.holeIndex];
-                let stackLayer = 0;
-                while (stackGear) {
-                    const key = `${current.beamIndex}-${current.holeIndex}-${stackLayer}`;
-                    if (!visited.has(key)) {
-                        stackGear.velocity = currentVelocity;
-                        visited.add(key);
-                        queue.push({
-                            beamIndex: current.beamIndex,
-                            holeIndex: current.holeIndex,
-                            gear: stackGear,
-                            layer: stackLayer
-                        });
-                    }
-                    stackGear = stackGear.nextLayer;
-                    stackLayer++;
-                }
-
-                connections.forEach(connection => {
-                    if (connection.type !== 'valid' || connection.layer !== current.layer) return;
-
-                    let targetBeam = -1;
-                    let targetHole = -1;
-
-                    if (connection.fromBeam === current.beamIndex && connection.from === current.holeIndex) {
-                        targetBeam = connection.toBeam;
-                        targetHole = connection.to;
-                    } else if (connection.toBeam === current.beamIndex && connection.to === current.holeIndex) {
-                        targetBeam = connection.fromBeam;
-                        targetHole = connection.from;
-                    }
-
-                    if (targetBeam === -1) return;
-
-                    const targetGear = getGearAtLayer(targetBeam, targetHole, current.layer);
-                    if (!targetGear) return;
-
-                    const neighborKey = `${targetBeam}-${targetHole}-${current.layer}`;
-                    if (visited.has(neighborKey)) return;
-
-                    targetGear.velocity = currentVelocity * -(current.gear.teeth / targetGear.teeth);
-                    visited.add(neighborKey);
-                    queue.push({
-                        beamIndex: targetBeam,
-                        holeIndex: targetHole,
-                        gear: targetGear,
-                        layer: current.layer
-                    });
                 });
+        }
+
+        function propagateMotorAxleVelocities(graphAnalysis) {
+            resetAllAxleVelocities();
+            if (!motorPosition) return;
+
+            const rootKey = axleKey(motorPosition.beamIndex, motorPosition.holeIndex);
+            const rootPotential = graphAnalysis.potentials.get(rootKey);
+
+            // A motor on an isolated axle still drives that axle.
+            if (rootPotential === undefined) {
+                setAxleVelocity(motorPosition.beamIndex, motorPosition.holeIndex, 1);
+                return;
+            }
+
+            const rootComponent = graphAnalysis.componentByNode.get(rootKey);
+            for (const [key, potential] of graphAnalysis.potentials.entries()) {
+                if (graphAnalysis.componentByNode.get(key) !== rootComponent) continue;
+                const [beamIndex, holeIndex] = key.split('_').map(Number);
+                setAxleVelocity(beamIndex, holeIndex, potential / rootPotential);
+            }
+        }
+
+        function validateAndCalculate() {
+            gearConnectionsMap = {};
+
+            const allGears = collectBoardGearItems();
+            const network = analyzeGearNetworkForItems(allGears);
+            const { connections, ratioGraph } = network;
+            const isValid = network.isValid;
+            const statusMsg = t(network.statusKey);
+
+            if (!ratioGraph.ok) {
+                gearConnectionsMap = {};
+                resetAllAxleVelocities();
+            } else {
+                populateGearConnectionsMap(connections);
+                propagateMotorAxleVelocities(ratioGraph);
             }
 
             renderConnections(connections);
@@ -617,99 +701,7 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
             renderSimulationStats();
             renderSideView();
 
-            return { isValid, connections };
-        }
-
-        function renderSideView_Old() {
-            const container = document.getElementById('sideViewContainer');
-            if (!container) return;
-
-            // Visual Constants for Side Profile
-            const scale = 0.55; // Scale down to fit box
-            const studSize = STUD_SPACING * scale; // Horizontal space per hole
-            const beamHeight = 20; // Visual thickness of beam (Top Layer)
-            const gearHeight = 18; // Visual thickness of gear (Bottom Layer)
-            const axleHeight = 15; // Connection length
-            const layerGap = 8;
-
-            // Calculate SVG height based on beam count
-            // Each beam takes: beamHeight + axleHeight + gearHeight + margin
-            const rowHeight = 70;
-            const svgWidth = (11 * studSize) + 40;
-            const svgHeight = Math.max(80, beamCount * rowHeight);
-
-            let svgContent = `<svg width="100%" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" style="overflow:visible;">`;
-
-            // Draw each beam row
-            for (let b = 0; b < beamCount; b++) {
-                const startY = b * rowHeight + 10;
-                const beamY = startY;
-                const gearY = startY + beamHeight + layerGap;
-
-                // 1. Draw Brick Layer (The Beam)
-                // Looks like a long rectangle
-                const beamWidth = 11 * studSize;
-                // Beam Color Mapping
-                const colorMap = {
-                    'blue': '#0056b3', 'red': '#c91a09', 'yellow': '#f59e0b',
-                    'green': '#16a34a', 'white': '#e2e8f0', 'black': '#1e293b'
-                };
-                const bColor = colorMap[beamColor] || '#0056b3';
-
-                // Draw Beam Body
-                svgContent += `
-                    <!-- Beam ${b + 1} -->
-                    <rect x="20" y="${beamY}" width="${beamWidth}" height="${beamHeight}" rx="2" fill="${bColor}" stroke="rgba(0,0,0,0.2)" stroke-width="1"/>
-                    <!-- Stud tops indication (small lines) -->
-                `;
-
-                // Add stud markers on beam
-                for (let s = 0; s < 11; s++) {
-                    svgContent += `<circle cx="${20 + s * studSize + studSize / 2}" cy="${beamY + beamHeight / 2}" r="2" fill="rgba(0,0,0,0.2)" />`;
-                }
-
-                // 2. Scan for Gears to draw Gear Layer
-                if (boardState[b]) {
-                    for (let h = 0; h < 11; h++) {
-                        const gear = boardState[b][h];
-                        if (gear) {
-                            const centerX = 20 + (h * studSize) + (studSize / 2);
-
-                            // Gear Width (Diameter edge-on)
-                            const diameter = (gear.radius * 2 * STUD_SPACING * scale);
-
-                            // Draw Axle (Yellow) connecting Beam and Gear
-                            svgContent += `
-                                <rect x="${centerX - 3}" y="${beamY + beamHeight / 2}" width="6" height="${beamHeight / 2 + layerGap + gearHeight}" fill="#facc15" stroke="#ca8a04" stroke-width="0.5" rx="1"/>
-                            `;
-
-                            // Draw Gear (Edge View) - A rectangle with "teeth" pattern
-                            // If user wants specific look for 28T vs others, we can differentiate, but usually generic 'ridged cylinder' looks fine.
-                            const gColor = gear.color;
-                            const dColor = adjustColor(gColor, -20);
-
-                            // Main Gear Body
-                            svgContent += `
-                                <rect x="${centerX - diameter / 2}" y="${gearY}" width="${diameter}" height="${gearHeight}" rx="3" fill="${gColor}" stroke="${dColor}" stroke-width="1"/>
-                            `;
-
-                            // Add rudimentary "teeth" texture (vertical lines)
-                            const toothSpacing = 4;
-                            const numStripes = Math.floor(diameter / toothSpacing);
-                            for (let t = 1; t < numStripes; t++) {
-                                svgContent += `
-                                    <line x1="${centerX - diameter / 2 + t * toothSpacing}" y1="${gearY}" 
-                                          x2="${centerX - diameter / 2 + t * toothSpacing}" y2="${gearY + gearHeight}" 
-                                          stroke="${dColor}" stroke-width="0.5" opacity="0.5"/>
-                                `;
-                            }
-                        }
-                    }
-                }
-            }
-
-            svgContent += `</svg>`;
-            container.innerHTML = svgContent;
+            return { isValid, connections, ratioGraph };
         }
 
         // Global State for Beam Tab (For Side View Only)
@@ -724,11 +716,11 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
             const container = document.getElementById('sideViewContainer');
             if (!container) return;
 
-            // Visual Constants for Side Profile
-            const scale = 0.5;
+            // Visual constants derived from the same LEGO plan geometry used by the solver.
+            const scale = LEGO_GEOMETRY.SIDE_VIEW_SCALE;
             const studSize = STUD_SPACING * scale;
-            const beamHeight = 20;
-            const gearHeight = 18;
+            const beamHeight = LEGO_GEOMETRY.BEAM_HEIGHT_PX * scale;
+            const gearHeight = 18; // Profile thickness; independent from plan-view pitch geometry.
             const layerGap = 2;
 
             // Motor Dimensions
@@ -780,7 +772,7 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
                         const gear = boardState[b][h];
                         let current = gear;
                         while (current) {
-                            const gearRadiusPx = current.radius * STUD_SPACING * scale;
+                            const gearRadiusPx = getPhysicalRadius(current) * STUD_SPACING * scale;
                             // Axle h is between stud h and stud h+1
                             const centerPos = (h * studSize) + studSize;
 
@@ -894,7 +886,7 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
                             const currentGearY = gearY + (layerIdx * (gearHeight + layerGap));
                             // Gear center is at axle position (between stud h and h+1)
                             const centerX = paddingLeft + (h * studSize) + studSize;
-                            const diameter = (current.radius * 2 * STUD_SPACING * scale);
+                            const diameter = getPhysicalRadius(current) * 2 * STUD_SPACING * scale;
                             const gColor = current.color;
                             const dColor = adjustColor(gColor, -20);
 
@@ -931,32 +923,48 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
 
 
         function renderConnections(connections) {
-            const layer = document.getElementById('connectionLayer');
-            if (!layer) return;
+            for (let beamIndex = 0; beamIndex < beamCount; beamIndex++) {
+                const layer = document.getElementById(`connectionLayer_${beamIndex}`);
+                if (layer) layer.innerHTML = '';
+            }
 
-            layer.innerHTML = connections.map(conn => {
-                const isError = conn.type !== 'valid';
+            document.querySelectorAll('.beam-hole').forEach(hole => {
+                hole.classList.remove('invalid', 'mesh-connected');
+            });
 
-                // Calculate position relative to hole container origin (left: 20px)
-                // Hole center X = index * STUD_SPACING
-                // Start X = from * STUD_SPACING
-                // Width = (to - from) * STUD_SPACING
+            const markHole = (beamIndex, holeIndex, isError) => {
+                const hole = document.querySelector(
+                    `.beam-hole[data-beam-index="${beamIndex}"][data-hole-index="${holeIndex}"]`
+                );
+                if (!hole) return;
+                hole.classList.toggle('invalid', isError);
+                if (!isError) hole.classList.add('mesh-connected');
+            };
 
-                // We want the line to start from center of From hole to center of To hole.
-                // The layer is inside .technic-beam which has padding. 
-                // But .beam-holes is rel pos.
-                // Let's attach relative to connectionLayer which is at top-left of beam content
+            connections.forEach(connection => {
+                const isError = connection.type !== 'valid';
+                markHole(connection.fromBeam, connection.from, isError);
+                markHole(connection.toBeam, connection.to, isError);
 
-                // Adjust for parent padding (20px)
-                const startX = (conn.from * STUD_SPACING) + 20 + 12; // 20 padding + 12 half hole
-                const width = (conn.to - conn.from) * STUD_SPACING;
+                // Horizontal connections can be drawn inside one beam. Cross-beam/diagonal
+                // constraints are represented by the endpoint states to avoid a misleading line.
+                if (connection.fromBeam !== connection.toBeam) return;
 
-                return `
-                    <div class="connection-indicator ${isError ? 'error' : ''}" 
-                         style="left: ${startX}px; width: ${width}px; background-color: ${isError ? '#e74c3c' : '#2ecc71'};">
-                    </div>
-                `;
-            }).join('');
+                const beamIndex = connection.fromBeam;
+                const layer = document.getElementById(`connectionLayer_${beamIndex}`);
+                if (!layer) return;
+
+                const firstHole = Math.min(connection.from, connection.to);
+                const holeDelta = Math.abs(connection.to - connection.from);
+                const startX = AXLE_CENTER_X0_PX + firstHole * STUD_SPACING;
+                const width = holeDelta * STUD_SPACING;
+
+                const indicator = document.createElement('div');
+                indicator.className = `connection-indicator${isError ? ' error' : ''}`;
+                indicator.style.left = `${startX}px`;
+                indicator.style.width = `${width}px`;
+                layer.appendChild(indicator);
+            });
         }
 
         // --- ANIMATION ENGINE ---
@@ -988,14 +996,14 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
         function runOneTurn() {
             // Check if motor is placed
             if (!motorPosition) {
-                showModal(t('motorMissing'), t('motorMissingMsg'));
+                showModal(t('motorMissingMsg'), t('motorMissing'));
                 return;
             }
 
             // Validate connections
             const { isValid, connections } = validateAndCalculate();
             if (!isValid) {
-                showModal(t('error'), t('conflictGears'));
+                showModal(t('conflictGears'), t('error'));
                 return;
             }
 
@@ -1005,9 +1013,10 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
                 if (boardState[beamIdx]) {
                     for (let holeIdx = 0; holeIdx < 11; holeIdx++) {
                         let g = boardState[beamIdx][holeIdx];
-                        const isMotorPos = motorPosition &&
+                        const isMotorAxle = motorPosition &&
                             motorPosition.beamIndex === beamIdx &&
                             motorPosition.holeIndex === holeIdx;
+                        const axleVelocity = getAxleVelocity(beamIdx, holeIdx);
 
                         let layer = 0;
                         while (g) {
@@ -1016,9 +1025,9 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
                                     beamIndex: beamIdx,
                                     holeIndex: holeIdx,
                                     gear: g,
-                                    layer: layer,
-                                    isMotor: isMotorPos && layer === 0,
-                                    velocity: g.velocity || 0
+                                    layer,
+                                    isMotorAxle,
+                                    velocity: axleVelocity
                                 });
                             }
                             g = g.nextLayer;
@@ -1029,14 +1038,15 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
             }
 
             if (allGears.length === 0) {
-                showModal(t('noGears'), t('noGearsMsg'));
+                showModal(t('noGearsMsg'), t('noGears'));
                 return;
             }
 
-            // Calculate report data
-            // Motor velocity is 1.0 (reference), others are relative
-            const motorGear = allGears.find(g => g.isMotor);
-            const baseVelocity = motorGear ? Math.abs(motorGear.velocity) : 1;
+            // Calculate report data from the motor axle, not a specific gear layer.
+            const motorAxleVelocity = motorPosition
+                ? Math.abs(getAxleVelocity(motorPosition.beamIndex, motorPosition.holeIndex))
+                : 0;
+            const baseVelocity = motorAxleVelocity > 0 ? motorAxleVelocity : 1;
 
             let reportHtml = `
                 <div style="text-align: left; max-height: 400px; overflow-y: auto;">
@@ -1058,13 +1068,13 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
                 const torqueRatio = speedRatio > 0 ? 1 / speedRatio : 0;
                 const rotation = 360 * speedRatio; // Degrees when motor does 360°
                 const direction = item.velocity >= 0 ? '↻' : '↺';
-                const isMotorClass = item.isMotor ? 'background: #fef3c7;' : '';
+                const isMotorClass = item.isMotorAxle ? 'background: #fef3c7;' : '';
 
                 reportHtml += `
                     <tr style="${isMotorClass}">
                         <td style="padding: 6px; border: 1px solid #e2e8f0; text-align: center;">
                             <span style="display: inline-block; width: 12px; height: 12px; background: ${item.gear.color}; border-radius: 50%; margin-right: 4px;"></span>
-                            ${item.gear.teeth}T ${item.isMotor ? '⚡' : ''}
+                            ${item.gear.teeth}T ${item.isMotorAxle ? '⚡' : ''}
                         </td>
                         <td style="padding: 6px; border: 1px solid #e2e8f0; text-align: center;">
                             K${item.beamIndex + 1} D${item.holeIndex + 1}${item.layer > 0 ? ' L' + (item.layer + 1) : ''}
@@ -1165,74 +1175,71 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
             const statsGrid = document.getElementById('statsGrid');
             const statsPanel = document.getElementById('simulationStats');
 
-            // Collect all gears
             const allGears = [];
-            let driverGear = null;
-            let driverIndex = 0;
+            let driverItem = null;
 
             for (let beamIdx = 0; beamIdx < beamCount; beamIdx++) {
-                if (boardState[beamIdx]) {
-                    for (let holeIdx = 0; holeIdx < 11; holeIdx++) {
-                        let gear = boardState[beamIdx][holeIdx];
-                        if (gear) {
-                            const baseVelocity = gear.velocity || 0;
-                            const isMotorPosition = motorPosition &&
-                                motorPosition.beamIndex === beamIdx &&
-                                motorPosition.holeIndex === holeIdx;
+                if (!boardState[beamIdx]) continue;
 
-                            let layerIdx = 0;
-                            let current = gear;
+                for (let holeIdx = 0; holeIdx < 11; holeIdx++) {
+                    let current = boardState[beamIdx][holeIdx];
+                    if (!current) continue;
 
-                            while (current) {
-                                // Sync velocity for stats
-                                current.velocity = baseVelocity;
+                    const axleAngle = getAxleAngle(beamIdx, holeIdx);
+                    const axleVelocity = getAxleVelocity(beamIdx, holeIdx);
+                    const isMotorAxle = motorPosition &&
+                        motorPosition.beamIndex === beamIdx &&
+                        motorPosition.holeIndex === holeIdx;
 
-                                allGears.push({
-                                    beamIndex: beamIdx,
-                                    holeIndex: holeIdx,
-                                    gear: current,
-                                    isMotor: isMotorPosition,
-                                    layer: layerIdx,
-                                    visualId: `gear_visual_${beamIdx}_${holeIdx}_L${layerIdx}`
-                                });
+                    let layerIdx = 0;
+                    while (current) {
+                        const item = {
+                            beamIndex: beamIdx,
+                            holeIndex: holeIdx,
+                            gear: current,
+                            isMotorAxle,
+                            layer: layerIdx,
+                            isVirtual: false,
+                            angle: axleAngle,
+                            velocity: axleVelocity,
+                            visualId: `gear_visual_${beamIdx}_${holeIdx}_L${layerIdx}`
+                        };
+                        allGears.push(item);
 
-                                // Add Virtual Tooth Entries for Pointers
-                                const pointers = current.pointers || (current.hasPointer ? [0] : []);
-                                pointers.forEach((pOffset, pIdx) => {
-                                    allGears.push({
-                                        beamIndex: beamIdx,
-                                        holeIndex: holeIdx,
-                                        gear: {
-                                            type: 'tooth',
-                                            teeth: 1,
-                                            color: '#FF7F00',
-                                            angle: (current.angle || 0) + pOffset,
-                                            velocity: current.velocity
-                                        },
-                                        isMotor: false,
-                                        layer: layerIdx,
-                                        isVirtual: true,
-                                        pointerIndex: pIdx,
-                                        visualId: `pointer_visual_${beamIdx}_${holeIdx}_L${layerIdx}_P${pIdx}`
-                                    });
-                                });
-
-                                if (isMotorPosition && layerIdx === 0) {
-                                    driverGear = current;
-                                    driverIndex = allGears.length - 1 - pointers.length; // Adjust index to point to real gear
-                                }
-
-                                current = current.nextLayer;
-                                layerIdx++;
-                            }
+                        if (!driverItem && isMotorAxle && current.type !== 'bush') {
+                            driverItem = item;
                         }
+
+                        const pointers = current.pointers || (current.hasPointer ? [0] : []);
+                        pointers.forEach((pOffset, pIdx) => {
+                            allGears.push({
+                                beamIndex: beamIdx,
+                                holeIndex: holeIdx,
+                                gear: {
+                                    type: 'tooth',
+                                    teeth: 1,
+                                    color: '#FF7F00'
+                                },
+                                isMotorAxle: false,
+                                layer: layerIdx,
+                                isVirtual: true,
+                                pointerIndex: pIdx,
+                                angle: axleAngle + pOffset,
+                                velocity: axleVelocity,
+                                visualId: `pointer_visual_${beamIdx}_${holeIdx}_L${layerIdx}_P${pIdx}`
+                            });
+                        });
+
+                        current = current.nextLayer;
+                        layerIdx++;
                     }
                 }
             }
 
-            if (!driverGear && allGears.length > 0) {
-                driverGear = allGears[0].gear;
-                driverIndex = 0;
+            if (!driverItem) {
+                driverItem = allGears.find(item =>
+                    !item.isVirtual && item.gear.type !== 'bush'
+                ) || null;
             }
 
             if (allGears.length === 0) {
@@ -1242,39 +1249,27 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
             statsPanel.classList.add('active');
 
             let html = '';
-            // Show dynamics ONLY if running
             const showDynamics = isRunning;
+            const driverVelocity = driverItem ? driverItem.velocity : 0;
 
-            allGears.forEach((item, idx) => {
+            allGears.forEach(item => {
                 const gear = item.gear;
-
-                // Hide Bush from stats (but show Tooth)
                 if (gear.type === 'bush') return;
 
-                const isDriver = !item.isVirtual && (idx === driverIndex); // Fix driver check
-                // Note: We need accurate index mapping. Let's simplify: driver is only the main gear.
-                // Re-calculating driver logic is complex with inserted items.
-                // Let's iterate and check reference.
-                const isRealDriver = (gear === driverGear);
-                const hasMotor = item.isMotor;
-
-                // For virtual items, use parent velocity logic
-                const isSpinning = showDynamics && (Math.abs(gear.velocity) > 0.001 || (isRealDriver && hasMotor));
-
-                // Add active class for green background if spinning
-                const activeClass = isSpinning ? 'active-spinning' : (isRealDriver ? 'driver' : '');
+                const isDriver = item === driverItem;
+                const hasMotor = item.isMotorAxle && !item.isVirtual;
+                const isSpinning = showDynamics && Math.abs(item.velocity) > 0.001;
+                const activeClass = isSpinning ? 'active-spinning' : (isDriver ? 'driver' : '');
 
                 let dynamicRows = '';
                 if (isSpinning) {
-                    const directionText = gear.velocity > 0 ? 'Saat Yönü' : 'Ters Yön';
-                    const directionIcon = gear.velocity > 0 ? '↻' : '↺';
-                    const dirClass = gear.velocity > 0 ? 'cw' : 'ccw';
+                    const directionText = item.velocity > 0 ? 'Saat Yönü' : 'Ters Yön';
+                    const directionIcon = item.velocity > 0 ? '↻' : '↺';
+                    const dirClass = item.velocity > 0 ? 'cw' : 'ccw';
 
-                    let speedRatio = '1.00';
-                    if (driverGear && Math.abs(driverGear.velocity) > 0.001) {
-                        speedRatio = Math.abs(gear.velocity / driverGear.velocity).toFixed(2);
-                    } else if (Math.abs(gear.velocity) < 0.001) {
-                        speedRatio = '0.00';
+                    let speedRatio = '0.00';
+                    if (Math.abs(driverVelocity) > 0.001) {
+                        speedRatio = Math.abs(item.velocity / driverVelocity).toFixed(2);
                     }
 
                     dynamicRows = `
@@ -1287,14 +1282,18 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
                         <div class="gear-stat-row">
                             <span class="gear-stat-label">Hız:</span>
                             <span class="gear-stat-value">
-                                ${speedRatio}x 
+                                ${speedRatio}x
                                 <span style="font-size: 0.8em; color: #64748b; margin-left: 4px;">
-                                    (${Math.round(Math.abs(gear.velocity) * 300)} RPM)
+                                    (${Math.round(Math.abs(item.velocity) * 300)} RPM)
                                 </span>
                             </span>
                         </div>
-                     `;
+                    `;
                 }
+
+                const role = hasMotor
+                    ? '⚡ Motor'
+                    : (isDriver ? '🔧 Sürücü' : '⚙️ Takipçi');
 
                 html += `
                     <div class="gear-stat-card ${activeClass}" onclick="highlightGear('${item.visualId}')" style="cursor: pointer;">
@@ -1306,12 +1305,12 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
                         <div class="gear-stat-values">
                             <div class="gear-stat-row">
                                 <span class="gear-stat-label">Rol:</span>
-                                <span class="gear-stat-value">${isDriver ? (hasMotor ? '⚡ Motor' : '🔧 Sürücü') : '⚙️ Takipçi'}</span>
+                                <span class="gear-stat-value">${role}</span>
                             </div>
                             ${dynamicRows}
                             <div class="gear-stat-row">
                                 <span class="gear-stat-label">Açı:</span>
-                                <span class="gear-stat-value" id="${item.isVirtual ? `angle_pointer_${item.beamIndex}_${item.holeIndex}_L${item.layer}_P${item.pointerIndex}` : `angle_${item.beamIndex}_${item.holeIndex}_L${item.layer}`}">${Math.round(gear.angle || 0)}°</span>
+                                <span class="gear-stat-value" id="${item.isVirtual ? `angle_pointer_${item.beamIndex}_${item.holeIndex}_L${item.layer}_P${item.pointerIndex}` : `angle_${item.beamIndex}_${item.holeIndex}_L${item.layer}`}">${Math.round(item.angle)}°</span>
                             </div>
                         </div>
                     </div>
@@ -1320,10 +1319,6 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
 
             statsGrid.innerHTML = html;
         }
-
-        // Highlight Selected Gear with Yellow Glow
-        let currentHighlight = null;
-        let currentHighlightKey = null;
 
         function highlightGear(visualId) {
             const key = visualId;
@@ -1364,10 +1359,10 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
                         let gear = boardState[beamIdx][holeIdx];
                         let layerIdx = 0;
                         while (gear) {
-                            // Update Gear Angle
+                            const axleAngle = getAxleAngle(beamIdx, holeIdx);
                             const angleEl = document.getElementById(`angle_${beamIdx}_${holeIdx}_L${layerIdx}`);
                             if (angleEl) {
-                                const normalizedAngle = ((gear.angle % 360) + 360) % 360;
+                                const normalizedAngle = ((axleAngle % 360) + 360) % 360;
                                 angleEl.textContent = `${normalizedAngle.toFixed(0)}°`;
                             }
 
@@ -1376,7 +1371,7 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
                             pointers.forEach((pOffset, pIdx) => {
                                 const pAngleEl = document.getElementById(`angle_pointer_${beamIdx}_${holeIdx}_L${layerIdx}_P${pIdx}`);
                                 if (pAngleEl) {
-                                    const pAngle = (gear.angle + pOffset);
+                                    const pAngle = (axleAngle + pOffset);
                                     const normPAngle = ((pAngle % 360) + 360) % 360;
                                     pAngleEl.textContent = `${normPAngle.toFixed(0)}°`;
                                 }
@@ -1402,45 +1397,41 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
             const currentSpeedMultiplier = parseFloat(document.getElementById('speedSlider')?.value || 1);
 
             for (let beamIdx = 0; beamIdx < beamCount; beamIdx++) {
-                if (boardState[beamIdx]) {
-                    for (let holeIdx = 0; holeIdx < 11; holeIdx++) {
-                        const gearStack = boardState[beamIdx][holeIdx];
+                if (!boardState[beamIdx]) continue;
 
-                        if (gearStack) {
-                            // Physics Update (Base Layer drives the stack)
-                            if (gearStack.velocity !== 0) {
-                                const da = gearStack.velocity * currentSpeedMultiplier * speedFactor * safeDelta;
-                                gearStack.angle += da;
-                            }
+                for (let holeIdx = 0; holeIdx < 11; holeIdx++) {
+                    const gearStack = boardState[beamIdx][holeIdx];
+                    if (!gearStack) continue;
 
-                            // Render Update (All Layers Synced)
-                            let current = gearStack;
-                            let layerIdx = 0;
-                            const baseAngle = gearStack.angle;
+                    const axleVelocity = getAxleVelocity(beamIdx, holeIdx);
+                    if (axleVelocity !== 0) {
+                        const deltaAngle = axleVelocity * currentSpeedMultiplier * speedFactor * safeDelta;
+                        setAxleAngle(beamIdx, holeIdx, getAxleAngle(beamIdx, holeIdx) + deltaAngle);
+                    }
 
-                            while (current) {
-                                // Sync angle for co-axial gears
-                                current.angle = baseAngle;
+                    const axleAngle = getAxleAngle(beamIdx, holeIdx);
+                    let current = gearStack;
+                    let layerIdx = 0;
 
-                                // Update Visual Element
-                                const visual = document.getElementById(`gear_visual_${beamIdx}_${holeIdx}_L${layerIdx}`);
-                                if (visual) {
-                                    visual.style.transform = `translate(-50%, -50%) rotate(${current.angle}deg)`;
+                    while (current) {
+                        const visual = document.getElementById(`gear_visual_${beamIdx}_${holeIdx}_L${layerIdx}`);
+                        if (visual) {
+                            visual.style.transform = `translate(-50%, -50%) rotate(${axleAngle}deg)`;
 
-                                    // Update Pointers if any
-                                    const pointers = current.pointers || (current.hasPointer ? [0] : []);
-                                    pointers.forEach((pOffset, pIdx) => {
-                                        const pVisual = document.getElementById(`pointer_visual_${beamIdx}_${holeIdx}_L${layerIdx}_P${pIdx}`);
-                                        if (pVisual) {
-                                            pVisual.style.transform = `translate(-50%, -50%) rotate(${current.angle + pOffset}deg)`;
-                                        }
-                                    });
+                            const pointers = current.pointers || (current.hasPointer ? [0] : []);
+                            pointers.forEach((pOffset, pIdx) => {
+                                const pointerVisual = document.getElementById(
+                                    `pointer_visual_${beamIdx}_${holeIdx}_L${layerIdx}_P${pIdx}`
+                                );
+                                if (pointerVisual) {
+                                    pointerVisual.style.transform =
+                                        `translate(-50%, -50%) rotate(${axleAngle + pOffset}deg)`;
                                 }
-
-                                current = current.nextLayer;
-                                layerIdx++;
-                            }
+                            });
                         }
+
+                        current = current.nextLayer;
+                        layerIdx++;
                     }
                 }
             }

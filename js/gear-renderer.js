@@ -69,13 +69,12 @@
         // Global State for Beam Tab
         let activeBeamIndex = 0;
 
-        function switchBeam(index) {
-            activeBeamIndex = index;
-            renderBeam();
-        }
-
         function renderBeam() {
             const container = document.getElementById('simContainer');
+            const holeSize = LEGO_GEOMETRY.HOLE_SIZE_PX;
+            const holeRadius = LEGO_GEOMETRY.HOLE_RADIUS_PX;
+            const gearLayerLeft = GEAR_LAYER_LEFT_PX;
+            const axleCenterY = LEGO_GEOMETRY.AXLE_CENTER_Y_PX;
 // Color Map Logic
             const colorMap = {
                 'blue': '#0055BF',
@@ -140,7 +139,9 @@
                         <div class="beam-hole ${hasGearClass} ${hasMotorClass}" 
                              onclick="handleHoleClick(${beamIndex}, ${holeIndex})" 
                              data-index="${holeIndex + 1}"
-                             style="margin-right: ${holeIndex < 10 ? (STUD_SPACING - 30) + 'px' : '0'};">
+                             data-beam-index="${beamIndex}"
+                             data-hole-index="${holeIndex}"
+                             style="margin-right: ${holeIndex < 10 ? (STUD_SPACING - holeSize) + 'px' : '0'};">
                         </div>
                     `;
 
@@ -149,20 +150,19 @@
                         let current = gear;
                         let layerIdx = 0;
                         while (current) {
-                            // Visual scale factor for gears (1.1 = 10% larger visually)
-                            const VISUAL_SCALE = 1.1;
-                            const pixelDiameter = (current.radius * 2) * STUD_SPACING * VISUAL_SCALE;
+                            const pixelDiameter = getPhysicalRadius(current) * 2 * STUD_SPACING;
                             const centerX = holeIndex * STUD_SPACING;
+                            const axleAngle = getAxleAngle(beamIndex, holeIndex);
 
                             gearsHtml += `
                                 <div class="gear-on-beam" id="gear_visual_${beamIndex}_${holeIndex}_L${layerIdx}" 
                                     onmousedown="startGearDrag(event, ${beamIndex}, ${holeIndex})"
                                     onclick="handleHoleClick(${beamIndex}, ${holeIndex})"
                                     style="width:${pixelDiameter}px; height:${pixelDiameter}px; 
-                                           left: ${centerX + 15}px;
+                                           left: ${centerX + holeRadius}px;
                                            z-index: ${10 + layerIdx};
                                            pointer-events: auto;
-                                           transform: translate(-50%, -50%) rotate(${current.angle || 0}deg);">
+                                           transform: translate(-50%, -50%) rotate(${axleAngle}deg);">
                                     ${(current.type === 'bush') ? generateBushSVG(current.color, pixelDiameter, hasMotor) : generateDetailedGearSVG(current.teeth, current.color, pixelDiameter, hasMotor)}
                                 </div>
                             `;
@@ -170,15 +170,15 @@
                             // Pointer Overlays (Tooth) - Support Multiple
                             const pointers = current.pointers || (current.hasPointer ? [0] : []);
                             pointers.forEach((pOffset, pIdx) => {
-                                const ptrSize = 100;
+                                const ptrSize = STUD_SPACING * 2;
                                 gearsHtml += `
                                     <div class="gear-on-beam pointer-overlay" 
                                         id="pointer_visual_${beamIndex}_${holeIndex}_L${layerIdx}_P${pIdx}"
                                         style="width:${ptrSize}px; height:${ptrSize}px; 
-                                               left: ${centerX + 15}px;
+                                               left: ${centerX + holeRadius}px;
                                                z-index: ${20 + layerIdx};
                                                pointer-events: none;
-                                               transform: translate(-50%, -50%) rotate(${(current.angle || 0) + pOffset}deg);">
+                                               transform: translate(-50%, -50%) rotate(${axleAngle + pOffset}deg);">
                                         ${generateVisualPointerSVG('#FF7F00', ptrSize, false)}
                                     </div>
                                 `;
@@ -191,7 +191,7 @@
                         removeBtnsHtml += `
                             <button class="gear-remove-btn" 
                                     onclick="removeGear(${beamIndex}, ${holeIndex})"
-                                    style="left: ${centerX + 15}px; top: -15px; transform: translateX(-50%); z-index: 30;">
+                                    style="left: ${centerX + holeRadius}px; top: -${holeRadius}px; transform: translateX(-50%); z-index: 30;">
                                 ×
                             </button>
                         `;
@@ -205,16 +205,16 @@
                         <div class="technic-beam" style="margin-top: 0; background-color: ${bgColor} !important; border: ${borderStyle} !important;">
                             <div class="connection-layer" id="connectionLayer_${beamIndex}"></div>
                             <!-- Holes in normal flow (relative) -->
-                            <div class="beam-holes" style="position:relative; z-index:2; margin-left: 30px;">
+                            <div class="beam-holes" style="position:relative; z-index:2; margin-left: ${LEGO_GEOMETRY.HOLE_ROW_MARGIN_LEFT_PX}px;">
                                 ${holesHtml}
                             </div>
 
                             <!-- Gears positioned at hole center -->
-                            <div style="position: absolute; top: 24px; left: 34px; width: 100%; height: 0; z-index: 10;">
+                            <div style="position: absolute; top: ${axleCenterY}px; left: ${gearLayerLeft}px; width: 100%; height: 0; z-index: 10;">
                                 ${gearsHtml}
                             </div>
                             <!-- Hit area for removing gears -->
-                            <div style="position: absolute; top: 0; left: 34px; width: 100%; height: 100%; z-index: 100; pointer-events:none;">
+                            <div style="position: absolute; top: 0; left: ${gearLayerLeft}px; width: 100%; height: 100%; z-index: 100; pointer-events:none;">
                                 ${removeBtnsHtml}
                             </div>
                         </div>
