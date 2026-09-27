@@ -2,8 +2,27 @@
 
 // --- CONFIGURATION ---
 
-        // 1 Stud (Hole center-to-center spacing) in pixels
-        const STUD_SPACING = 50;
+        // Shared LEGO geometry. Physics and rendering derive from the same dimensions.
+        const LEGO_GEOMETRY = Object.freeze({
+            STUD_PITCH_MM: 8,
+            BRICK_HEIGHT_MM: 9.6,
+            STUD_PX: 50,
+            BRICK_HEIGHT_STUDS: 9.6 / 8,
+            BEAM_HEIGHT_PX: 60,
+            HOLE_SIZE_PX: 30,
+            HOLE_RADIUS_PX: 15,
+            BEAM_PADDING_LEFT_PX: 5,
+            HOLE_ROW_MARGIN_LEFT_PX: 30,
+            AXLE_CENTER_Y_PX: 24,
+            SIDE_VIEW_SCALE: 0.5
+        });
+
+        const STUD_SPACING = LEGO_GEOMETRY.STUD_PX;
+        const AXLE_CENTER_X0_PX =
+            LEGO_GEOMETRY.BEAM_PADDING_LEFT_PX +
+            LEGO_GEOMETRY.HOLE_ROW_MARGIN_LEFT_PX +
+            LEGO_GEOMETRY.HOLE_RADIUS_PX;
+        const GEAR_LAYER_LEFT_PX = AXLE_CENTER_X0_PX - LEGO_GEOMETRY.HOLE_RADIUS_PX;
 
         // Gear Definitions
         // radius: The pitch radius in "studs".

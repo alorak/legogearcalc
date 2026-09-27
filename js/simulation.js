@@ -2,7 +2,7 @@
 
 // --- LEGO GEAR PLACEMENT CONSTRAINTS ---
 // Distances are expressed in LEGO stud units.
-const BEAM_VERTICAL_SPACING_STUDS = 1.2;
+const BEAM_VERTICAL_SPACING_STUDS = LEGO_GEOMETRY.BRICK_HEIGHT_STUDS;
 const MESH_DISTANCE_TOLERANCE_STUDS = 0.065;
 const TOOTH_PHASE_TOLERANCE_CYCLES = 0.06;
 const GEAR_ADDENDUM_STUDS = 0.125;
@@ -666,98 +666,6 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
             return { isValid, connections, ratioGraph };
         }
 
-        function renderSideView_Old() {
-            const container = document.getElementById('sideViewContainer');
-            if (!container) return;
-
-            // Visual Constants for Side Profile
-            const scale = 0.55; // Scale down to fit box
-            const studSize = STUD_SPACING * scale; // Horizontal space per hole
-            const beamHeight = 20; // Visual thickness of beam (Top Layer)
-            const gearHeight = 18; // Visual thickness of gear (Bottom Layer)
-            const axleHeight = 15; // Connection length
-            const layerGap = 8;
-
-            // Calculate SVG height based on beam count
-            // Each beam takes: beamHeight + axleHeight + gearHeight + margin
-            const rowHeight = 70;
-            const svgWidth = (11 * studSize) + 40;
-            const svgHeight = Math.max(80, beamCount * rowHeight);
-
-            let svgContent = `<svg width="100%" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" style="overflow:visible;">`;
-
-            // Draw each beam row
-            for (let b = 0; b < beamCount; b++) {
-                const startY = b * rowHeight + 10;
-                const beamY = startY;
-                const gearY = startY + beamHeight + layerGap;
-
-                // 1. Draw Brick Layer (The Beam)
-                // Looks like a long rectangle
-                const beamWidth = 11 * studSize;
-                // Beam Color Mapping
-                const colorMap = {
-                    'blue': '#0056b3', 'red': '#c91a09', 'yellow': '#f59e0b',
-                    'green': '#16a34a', 'white': '#e2e8f0', 'black': '#1e293b'
-                };
-                const bColor = colorMap[beamColor] || '#0056b3';
-
-                // Draw Beam Body
-                svgContent += `
-                    <!-- Beam ${b + 1} -->
-                    <rect x="20" y="${beamY}" width="${beamWidth}" height="${beamHeight}" rx="2" fill="${bColor}" stroke="rgba(0,0,0,0.2)" stroke-width="1"/>
-                    <!-- Stud tops indication (small lines) -->
-                `;
-
-                // Add stud markers on beam
-                for (let s = 0; s < 11; s++) {
-                    svgContent += `<circle cx="${20 + s * studSize + studSize / 2}" cy="${beamY + beamHeight / 2}" r="2" fill="rgba(0,0,0,0.2)" />`;
-                }
-
-                // 2. Scan for Gears to draw Gear Layer
-                if (boardState[b]) {
-                    for (let h = 0; h < 11; h++) {
-                        const gear = boardState[b][h];
-                        if (gear) {
-                            const centerX = 20 + (h * studSize) + (studSize / 2);
-
-                            // Gear Width (Diameter edge-on)
-                            const diameter = (gear.radius * 2 * STUD_SPACING * scale);
-
-                            // Draw Axle (Yellow) connecting Beam and Gear
-                            svgContent += `
-                                <rect x="${centerX - 3}" y="${beamY + beamHeight / 2}" width="6" height="${beamHeight / 2 + layerGap + gearHeight}" fill="#facc15" stroke="#ca8a04" stroke-width="0.5" rx="1"/>
-                            `;
-
-                            // Draw Gear (Edge View) - A rectangle with "teeth" pattern
-                            // If user wants specific look for 28T vs others, we can differentiate, but usually generic 'ridged cylinder' looks fine.
-                            const gColor = gear.color;
-                            const dColor = adjustColor(gColor, -20);
-
-                            // Main Gear Body
-                            svgContent += `
-                                <rect x="${centerX - diameter / 2}" y="${gearY}" width="${diameter}" height="${gearHeight}" rx="3" fill="${gColor}" stroke="${dColor}" stroke-width="1"/>
-                            `;
-
-                            // Add rudimentary "teeth" texture (vertical lines)
-                            const toothSpacing = 4;
-                            const numStripes = Math.floor(diameter / toothSpacing);
-                            for (let t = 1; t < numStripes; t++) {
-                                svgContent += `
-                                    <line x1="${centerX - diameter / 2 + t * toothSpacing}" y1="${gearY}" 
-                                          x2="${centerX - diameter / 2 + t * toothSpacing}" y2="${gearY + gearHeight}" 
-                                          stroke="${dColor}" stroke-width="0.5" opacity="0.5"/>
-                                `;
-                            }
-                        }
-                    }
-                }
-            }
-
-            svgContent += `</svg>`;
-            container.innerHTML = svgContent;
-        }
-
         // Global State for Beam Tab (For Side View Only)
         // activeBeamIndex is defined above
 
@@ -770,11 +678,11 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
             const container = document.getElementById('sideViewContainer');
             if (!container) return;
 
-            // Visual Constants for Side Profile
-            const scale = 0.5;
+            // Visual constants derived from the same LEGO plan geometry used by the solver.
+            const scale = LEGO_GEOMETRY.SIDE_VIEW_SCALE;
             const studSize = STUD_SPACING * scale;
-            const beamHeight = 20;
-            const gearHeight = 18;
+            const beamHeight = LEGO_GEOMETRY.BEAM_HEIGHT_PX * scale;
+            const gearHeight = 18; // Profile thickness; independent from plan-view pitch geometry.
             const layerGap = 2;
 
             // Motor Dimensions
@@ -826,7 +734,7 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
                         const gear = boardState[b][h];
                         let current = gear;
                         while (current) {
-                            const gearRadiusPx = current.radius * STUD_SPACING * scale;
+                            const gearRadiusPx = getPhysicalRadius(current) * STUD_SPACING * scale;
                             // Axle h is between stud h and stud h+1
                             const centerPos = (h * studSize) + studSize;
 
@@ -940,7 +848,7 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
                             const currentGearY = gearY + (layerIdx * (gearHeight + layerGap));
                             // Gear center is at axle position (between stud h and h+1)
                             const centerX = paddingLeft + (h * studSize) + studSize;
-                            const diameter = (current.radius * 2 * STUD_SPACING * scale);
+                            const diameter = getPhysicalRadius(current) * 2 * STUD_SPACING * scale;
                             const gColor = current.color;
                             const dColor = adjustColor(gColor, -20);
 
@@ -977,32 +885,48 @@ function instantiatePlacedGear(gearTemplate, beamIndex, holeIndex, angle) {
 
 
         function renderConnections(connections) {
-            const layer = document.getElementById('connectionLayer');
-            if (!layer) return;
+            for (let beamIndex = 0; beamIndex < beamCount; beamIndex++) {
+                const layer = document.getElementById(`connectionLayer_${beamIndex}`);
+                if (layer) layer.innerHTML = '';
+            }
 
-            layer.innerHTML = connections.map(conn => {
-                const isError = conn.type !== 'valid';
+            document.querySelectorAll('.beam-hole').forEach(hole => {
+                hole.classList.remove('invalid', 'mesh-connected');
+            });
 
-                // Calculate position relative to hole container origin (left: 20px)
-                // Hole center X = index * STUD_SPACING
-                // Start X = from * STUD_SPACING
-                // Width = (to - from) * STUD_SPACING
+            const markHole = (beamIndex, holeIndex, isError) => {
+                const hole = document.querySelector(
+                    `.beam-hole[data-beam-index="${beamIndex}"][data-hole-index="${holeIndex}"]`
+                );
+                if (!hole) return;
+                hole.classList.toggle('invalid', isError);
+                if (!isError) hole.classList.add('mesh-connected');
+            };
 
-                // We want the line to start from center of From hole to center of To hole.
-                // The layer is inside .technic-beam which has padding. 
-                // But .beam-holes is rel pos.
-                // Let's attach relative to connectionLayer which is at top-left of beam content
+            connections.forEach(connection => {
+                const isError = connection.type !== 'valid';
+                markHole(connection.fromBeam, connection.from, isError);
+                markHole(connection.toBeam, connection.to, isError);
 
-                // Adjust for parent padding (20px)
-                const startX = (conn.from * STUD_SPACING) + 20 + 12; // 20 padding + 12 half hole
-                const width = (conn.to - conn.from) * STUD_SPACING;
+                // Horizontal connections can be drawn inside one beam. Cross-beam/diagonal
+                // constraints are represented by the endpoint states to avoid a misleading line.
+                if (connection.fromBeam !== connection.toBeam) return;
 
-                return `
-                    <div class="connection-indicator ${isError ? 'error' : ''}" 
-                         style="left: ${startX}px; width: ${width}px; background-color: ${isError ? '#e74c3c' : '#2ecc71'};">
-                    </div>
-                `;
-            }).join('');
+                const beamIndex = connection.fromBeam;
+                const layer = document.getElementById(`connectionLayer_${beamIndex}`);
+                if (!layer) return;
+
+                const firstHole = Math.min(connection.from, connection.to);
+                const holeDelta = Math.abs(connection.to - connection.from);
+                const startX = AXLE_CENTER_X0_PX + firstHole * STUD_SPACING;
+                const width = holeDelta * STUD_SPACING;
+
+                const indicator = document.createElement('div');
+                indicator.className = `connection-indicator${isError ? ' error' : ''}`;
+                indicator.style.left = `${startX}px`;
+                indicator.style.width = `${width}px`;
+                layer.appendChild(indicator);
+            });
         }
 
         // --- ANIMATION ENGINE ---
