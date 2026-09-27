@@ -727,7 +727,7 @@
         /* Placed Gear on Beam */
         .gear-on-beam {
             position: absolute;
-            top: var(--axle-center-y-px);
+            top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             /* Center on the hole */
@@ -786,7 +786,7 @@
             position: absolute;
             height: 6px;
             background: #2ecc71;
-            top: 50%;
+            top: var(--axle-center-y-px);
             transform: translateY(-50%);
             border-radius: 3px;
             transition: all 0.3s;
