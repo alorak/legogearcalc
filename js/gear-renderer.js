@@ -4,7 +4,8 @@
 
         function renderPalette() {
             const container = document.getElementById('gearPalette');
-            container.innerHTML = GEARS.map((gear, index) => {
+
+            const gearItems = GEARS.map((gear, index) => {
                 const label = gear.teeth > 0 ? `${gear.teeth} ${t('teeth')}` : t('bore');
                 const alt = gear.teeth > 0
                     ? `LEGO Technic ${gear.teeth} tooth gear, part ${gear.partNum}`
@@ -23,7 +24,27 @@
                     </div>
                     <span>${label}</span>
                 </div>
-            `}).join('');
+            `;
+            }).join('');
+
+            const toothItem = `
+                <div class="gear-option tooth-palette-option${toothMode ? ' selected' : ''}"
+                    onclick="toggleToothMode()"
+                    id="toothModeBtn">
+                    <div class="gear-image-wrapper tooth-palette-icon" id="toothBtnIcon">
+                        <img
+                            class="gear-part-image"
+                            src="${rebrickableElementImage(TOOTH_PALETTE_ITEM.elementId)}"
+                            alt="LEGO Technic Tooth element ${TOOTH_PALETTE_ITEM.elementId}"
+                            loading="lazy"
+                            decoding="async"
+                            onerror="handleToothPaletteImageError(this)">
+                    </div>
+                    <span>${TOOTH_PALETTE_ITEM.label}</span>
+                </div>
+            `;
+
+            container.innerHTML = gearItems + toothItem;
         }
 
         function handlePaletteImageError(img, index) {
@@ -35,14 +56,31 @@
             wrapper.innerHTML = generateGearIconSVG(gear.teeth, gear.color, gear.radius);
         }
 
+        function handleToothPaletteImageError(img) {
+            const wrapper = img && img.parentElement;
+            if (!wrapper) return;
+
+            wrapper.innerHTML = iconSvg('tooth', 'ui-icon icon-tooth');
+        }
+
         function selectGear(index) {
-            // Disable delete mode when selecting a gear
+            // Gear, Tooth, Delete and Motor are mutually exclusive placement modes.
+            if (toothMode) {
+                toothMode = false;
+                const toothPanel = document.getElementById('toothSettingsPanel');
+                if (toothPanel) toothPanel.style.display = 'none';
+            }
+
             if (deleteMode) {
                 deleteMode = false;
                 document.getElementById('deleteModeBtn').classList.remove('active');
-                const trashIcon = iconSvg('trash', 'ui-icon ui-icon--sm');
-                document.getElementById('deleteModeBtn').innerHTML = trashIcon + t('deleteGear');
                 document.getElementById('simContainer').classList.remove('delete-mode');
+            }
+
+            if (motorMode) {
+                motorMode = false;
+                const motorBtn = document.getElementById('motorModeBtn');
+                if (motorBtn) motorBtn.classList.remove('active');
             }
 
             selectedGearIndex = index;
@@ -50,14 +88,6 @@
 
             const option = document.getElementById(`gearOption_${index}`);
             if (option) option.classList.add('selected');
-
-            // Bush button code removed
-
-            // Toggle Tooth Settings Panel
-            const toothPanel = document.getElementById('toothSettingsPanel');
-            if (toothPanel) {
-                toothPanel.style.display = (GEARS[index].type === 'tooth') ? 'block' : 'none';
-            }
 
             if (GEARS[index].type === 'bush') {
                 updateStatus(t('selectBore'));

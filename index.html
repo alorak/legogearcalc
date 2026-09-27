@@ -73,30 +73,21 @@
 
                 <!-- Gear controls -->
                 <section class="sidebar-card gears-card">
-                    <div class="sidebar-card-header">
+                    <div class="sidebar-card-header gears-card-header">
                         <h3 class="sidebar-card-title">
                             <span class="en-content">Gears</span><span class="tr-content">Dişliler</span>
                         </h3>
+                        <button class="gear-delete-header-btn" id="deleteModeBtn" type="button" onclick="toggleDeleteMode()">
+                            <svg class="ui-icon ui-icon--sm" aria-hidden="true" focusable="false"><use href="./assets/icons.svg#icon-trash"></use></svg>
+                            <span class="en-content">Delete</span><span class="tr-content">Sil</span>
+                        </button>
                     </div>
 
                     <div class="gear-palette" id="gearPalette">
-                        <!-- Gears injected by JS -->
+                        <!-- Gears + Tooth injected by JS -->
                     </div>
 
                     <div class="gear-card-spacer" aria-hidden="true"></div>
-
-                    <div class="gear-action-row">
-                        <button class="delete-mode-btn" id="deleteModeBtn" onclick="toggleDeleteMode()">
-                            <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="./assets/icons.svg#icon-trash"></use></svg>
-                            <span class="en-content">Delete Gear</span><span class="tr-content">Dişli Sil</span>
-                        </button>
-                        <button class="delete-mode-btn tooth-mode-btn" id="toothModeBtn" onclick="toggleToothMode()">
-                            <div class="tooth-btn-icon" id="toothBtnIcon">
-                                <svg class="ui-icon icon-tooth" aria-hidden="true" focusable="false"><use href="./assets/icons.svg#icon-tooth"></use></svg>
-                            </div>
-                            <span class="tooth-label">Tooth</span>
-                        </button>
-                    </div>
 
                     <div id="toothSettingsPanel" class="tooth-settings-panel">
                         <h4 class="tooth-settings-title">
