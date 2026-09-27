@@ -22,21 +22,13 @@
             display: inline;
         }
 
-        .sidebar-footer {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 20px;
-            padding-top: 12px;
-            border-top: 1px solid #e2e8f0;
-        }
-
         .lang-switch {
             display: inline-flex;
-            gap: 4px;
-            padding: 3px;
+            gap: 2px;
+            padding: 2px;
             border: 1px solid #e2e8f0;
             border-radius: 8px;
-            background: #fff;
+            background: #f8fafc;
         }
 
         .lang-btn {
@@ -44,9 +36,9 @@
             border-radius: 6px;
             background: transparent;
             color: #64748b;
-            padding: 5px 8px;
-            font-size: 0.72rem;
-            font-weight: 700;
+            padding: 4px 7px;
+            font-size: 0.66rem;
+            font-weight: 750;
             cursor: pointer;
         }
 
@@ -75,24 +67,206 @@
         /* Sidebar / Palette */
         .sidebar {
             width: 330px;
-            /* Slightly wider for comfort */
             height: 100%;
-            background: #f8fafc;
+            background: #f1f5f9;
             border-right: 1px solid #e2e8f0;
-            padding: 20px;
+            padding: 12px;
             overflow-y: auto;
             flex-shrink: 0;
             border-radius: 0;
             box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
             z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
-        .sidebar h2 {
-            font-size: 1.1rem;
+        .sidebar-card {
+            position: relative;
+            background: #ffffff;
+            border: 1px solid #dbe3ed;
+            border-radius: 14px;
+            padding: 13px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            flex: 0 0 auto;
+        }
+
+        .gears-card {
+            flex: 1 0 auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .motor-card {
+            margin-top: auto;
+        }
+
+        .sidebar-card-header {
+            min-height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .sidebar-card-title {
+            margin: 0;
             color: #0066cc;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #e2e8f0;
-            padding-bottom: 10px;
+            font-size: 0.86rem;
+            line-height: 1.2;
+            font-weight: 750;
+        }
+
+        .gear-card-spacer {
+            flex: 1 1 28px;
+            min-height: 16px;
+        }
+
+        .beam-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .picker-wrap {
+            position: relative;
+        }
+
+        .color-picker-wrap {
+            margin-left: auto;
+        }
+
+        .compact-picker {
+            min-width: 58px;
+            height: 38px;
+            padding: 0 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            background: #f8fafc;
+            color: #334155;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+        }
+
+        .compact-picker:hover,
+        .compact-picker[aria-expanded="true"] {
+            background: #ffffff;
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.10);
+        }
+
+        .beam-count-value {
+            min-width: 16px;
+            font-size: 1rem;
+            font-weight: 800;
+            color: #0066cc;
+            text-align: center;
+        }
+
+        .picker-chevron {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            line-height: 1;
+            transform: translateY(-1px);
+        }
+
+        .picker-menu {
+            position: absolute;
+            top: calc(100% + 7px);
+            left: 0;
+            z-index: 120;
+            display: none;
+            background: #ffffff;
+            border: 1px solid #dbe3ed;
+            border-radius: 12px;
+            padding: 6px;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+        }
+
+        .picker-menu.open {
+            display: grid;
+        }
+
+        .beam-count-menu {
+            grid-template-columns: repeat(5, 36px);
+            gap: 5px;
+        }
+
+        .picker-option {
+            width: 36px;
+            height: 36px;
+            border: 0;
+            border-radius: 8px;
+            background: #f8fafc;
+            color: #475569;
+            font-weight: 750;
+            cursor: pointer;
+        }
+
+        .picker-option:hover {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .picker-option.selected {
+            background: #0066cc;
+            color: #ffffff;
+        }
+
+        .color-picker {
+            min-width: 54px;
+            padding: 0 8px 0 9px;
+        }
+
+        .color-swatch {
+            width: 21px;
+            height: 21px;
+            display: inline-block;
+            border-radius: 50%;
+            background: var(--swatch-color);
+            border: 2px solid rgba(148, 163, 184, 0.4);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
+        }
+
+        .light-swatch {
+            border-color: #cbd5e1;
+        }
+
+        .color-menu {
+            right: 0;
+            left: auto;
+            grid-template-columns: repeat(3, 38px);
+            gap: 5px;
+        }
+
+        .color-option {
+            width: 38px;
+            height: 38px;
+            border: 0;
+            border-radius: 9px;
+            background: transparent;
+            display: grid;
+            place-items: center;
+            cursor: pointer;
+        }
+
+        .color-option:hover {
+            background: #f1f5f9;
+        }
+
+        .color-option.selected {
+            background: #e0f2fe;
+            box-shadow: inset 0 0 0 1px #93c5fd;
+        }
+
+        .compact-lang-switch {
+            flex: 0 0 auto;
         }
 
         .gear-palette {
@@ -182,7 +356,7 @@
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 8px;
             align-items: stretch;
-            margin-top: 15px;
+            margin-top: 0;
         }
 
         .gear-action-row .delete-mode-btn {
@@ -269,32 +443,6 @@
         .motor-dir-btn.active {
             background: #f59e0b;
             border-color: #b45309;
-            color: #fff;
-        }
-
-        /* Beam Count Buttons */
-        .beam-count-btn {
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
-            border: 2px solid #e2e8f0;
-            background: #fff;
-            color: #64748b;
-            font-size: 0.9rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .beam-count-btn:hover {
-            background: #e0f2fe;
-            border-color: #0066cc;
-            color: #0066cc;
-        }
-
-        .beam-count-btn.active {
-            background: #0066cc;
-            border-color: #0066cc;
             color: #fff;
         }
 
@@ -954,3 +1102,117 @@
             mix-blend-mode: multiply;
         }
 
+
+
+        .tooth-settings-panel {
+            display: none;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .tooth-settings-title {
+            margin: 0 0 8px;
+            font-size: 0.76rem;
+            color: #d97706;
+        }
+
+        .tooth-settings-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #fff7ed;
+            padding: 8px;
+            border-radius: 9px;
+            border: 1px solid #ffedd5;
+        }
+
+        .tooth-settings-control #pointerAngleDisplay {
+            min-width: 36px;
+            color: #9a3412;
+            font-size: 0.82rem;
+            font-weight: 750;
+        }
+
+        .tooth-rotate-btn {
+            flex: 1;
+            padding: 6px 8px;
+            font-size: 0.75rem;
+            background: #ffffff;
+            border: 1px solid #fdba74;
+            color: #c2410c;
+        }
+
+        .tooth-settings-help {
+            margin: 7px 0 0;
+            color: #94a3b8;
+            font-size: 0.7rem;
+            line-height: 1.35;
+        }
+
+        .motor-mode-btn {
+            margin-top: 0;
+        }
+
+        .motor-info-panel {
+            display: none;
+            margin-top: 9px;
+            padding: 9px;
+            background: #fffbeb;
+            border-radius: 9px;
+            border: 1px solid #f59e0b;
+        }
+
+        .motor-info-label {
+            margin-bottom: 7px;
+            color: #92400e;
+            font-size: 0.75rem;
+        }
+
+        .motor-direction-row {
+            display: flex;
+            gap: 6px;
+        }
+
+        .speed-control {
+            margin-top: 11px;
+        }
+
+        .speed-control label {
+            color: #475569;
+            font-size: 0.75rem;
+        }
+
+        .speed-control input {
+            width: 100%;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+
+        .speed-scale {
+            margin-top: 2px;
+            display: flex;
+            justify-content: space-between;
+            color: #94a3b8;
+            font-size: 0.68rem;
+        }
+
+        .speed-scale #speedLabel {
+            color: #0066cc;
+            font-weight: 750;
+        }
+
+        @media (max-height: 760px) {
+            .sidebar {
+                gap: 8px;
+                padding: 9px;
+            }
+
+            .sidebar-card {
+                padding: 10px;
+            }
+
+            .gear-card-spacer {
+                min-height: 8px;
+            }
+        }
