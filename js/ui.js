@@ -105,11 +105,21 @@
             deleteMode = !deleteMode;
             selectedGearIndex = null;
 
-            // Update UI
+            if (deleteMode && toothMode) {
+                toothMode = false;
+                const toothPanel = document.getElementById('toothSettingsPanel');
+                if (toothPanel) toothPanel.style.display = 'none';
+            }
+
+            if (deleteMode) {
+                motorMode = false;
+                const motorBtn = document.getElementById('motorModeBtn');
+                if (motorBtn) motorBtn.classList.remove('active');
+            }
+
             document.querySelectorAll('.gear-option').forEach(el => el.classList.remove('selected'));
             const btn = document.getElementById('deleteModeBtn');
             const simContainer = document.getElementById('simContainer');
-
             const trashIcon = iconSvg('trash', 'ui-icon ui-icon--sm');
 
             if (deleteMode) {
@@ -137,45 +147,33 @@
 
         function toggleToothMode() {
             toothMode = !toothMode;
-            // Reset other modes
+            selectedGearIndex = null;
+
             if (toothMode) {
                 deleteMode = false;
                 motorMode = false;
-                selectedGearIndex = null;
             }
-            updateStatus(toothMode ? t('toothMode') : t('toothModeOff'));
-            renderBeam(); // To update UI states
 
-            // Update UI Buttons
-            const btn = document.getElementById('toothModeBtn');
+            const toothOption = document.getElementById('toothModeBtn');
             const panel = document.getElementById('toothSettingsPanel');
             const deleteBtn = document.getElementById('deleteModeBtn');
             const motorBtn = document.getElementById('motorModeBtn');
+            const simContainer = document.getElementById('simContainer');
 
-            // Toggle classes
+            document.querySelectorAll('.gear-option').forEach(el => el.classList.remove('selected'));
+
             if (toothMode) {
-                // Active: Orange
-                btn.style.backgroundColor = '#fff7ed';
-                btn.style.borderColor = '#fdba74';
-                btn.style.color = '#c2410c';
-                btn.classList.add('active');
-
+                if (toothOption) toothOption.classList.add('selected');
                 if (panel) panel.style.display = 'block';
                 if (deleteBtn) deleteBtn.classList.remove('active');
                 if (motorBtn) motorBtn.classList.remove('active');
-
-                // Clear selection visual
-                document.querySelectorAll('.gear-option').forEach(el => el.classList.remove('selected'));
-                document.getElementById('simContainer').classList.remove('delete-mode');
+                if (simContainer) simContainer.classList.remove('delete-mode');
             } else {
-                // Inactive: Gray
-                btn.style.backgroundColor = '#f8fafc';
-                btn.style.borderColor = '#cbd5e1';
-                btn.style.color = '#64748b';
-                btn.classList.remove('active');
-
                 if (panel) panel.style.display = 'none';
             }
+
+            updateStatus(toothMode ? t('toothMode') : t('toothModeOff'));
+            renderBeam();
         }
 
 
@@ -183,6 +181,12 @@
             motorMode = !motorMode;
             deleteMode = false;
             selectedGearIndex = null;
+
+            if (motorMode && toothMode) {
+                toothMode = false;
+                const toothPanel = document.getElementById('toothSettingsPanel');
+                if (toothPanel) toothPanel.style.display = 'none';
+            }
 
             // Update UI
             document.querySelectorAll('.gear-option').forEach(el => el.classList.remove('selected'));

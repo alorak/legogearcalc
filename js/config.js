@@ -30,6 +30,10 @@
         // Example: 8T has 0.5 stud radius (1 stud diameter). Fits perfectly with another 8T on adjacent hole (dist 1).
         const REBRICKABLE_ELEMENT_CDN = 'https://cdn.rebrickable.com/media/parts/elements';
         const ICON_SPRITE_URL = './assets/icons.svg';
+        const TOOTH_PALETTE_ITEM = Object.freeze({
+            label: 'Tooth',
+            elementId: '6329890'
+        });
 
         // elementId controls only the palette photo. Physics/rendering still use teeth/radius/type.
         const GEARS = [
