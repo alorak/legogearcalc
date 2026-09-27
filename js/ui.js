@@ -2,6 +2,7 @@
 
 // --- INIT ---
         function init() {
+            syncGeometryCssVariables();
             initBoardState();
             renderPalette();
             renderBeam();
@@ -287,6 +288,10 @@
             }
             boardState = newBoardState;
             resizeAxleState(count);
+
+            if (typeof activeBeamIndex !== 'undefined') {
+                activeBeamIndex = Math.min(activeBeamIndex, Math.max(0, count - 1));
+            }
 
             // Check if motor was on a removed beam
             if (motorPosition && motorPosition.beamIndex >= beamCount) {

@@ -4,14 +4,6 @@
             box-sizing: border-box;
         }
 
-        :root {
-            --stud-px: 50px;
-            --beam-height-px: 60px;
-            --hole-size-px: 30px;
-            --hole-radius-px: 15px;
-            --axle-center-y-px: 24px;
-        }
-
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 50%, #cbd5e1 100%);

@@ -124,6 +124,56 @@
         JSON.stringify(graph.conflicts)
     );
 
+    // Placement must reject a ratio-cycle conflict before board mutation.
+    resetBoard(1);
+    placeRaw(0, 0, gear(24), 0);
+    let second = analyzeGearPlacement(0, 2, gear(8), 0);
+    expect('24T + 8T base mesh can be placed', second.ok, JSON.stringify(second));
+    if (second.ok) {
+        placeRaw(0, 2, gear(8), second.angle);
+    }
+
+    let layerPlacement = analyzeGearPlacement(0, 0, gear(8), 1);
+    expect('8T layer on first axle can be placed', layerPlacement.ok, JSON.stringify(layerPlacement));
+    if (layerPlacement.ok) {
+        boardState[0][0].nextLayer =
+            instantiatePlacedGear(gear(8), 0, 0, layerPlacement.angle);
+        setAxleAngle(0, 0, layerPlacement.angle);
+    }
+
+    const conflictingPlacement = analyzeGearPlacement(0, 2, gear(24), 1);
+    expect(
+        'Opposing layer ratio conflict is rejected before commit',
+        !conflictingPlacement.ok &&
+            conflictingPlacement.reason === 'kinematic-conflict',
+        JSON.stringify(conflictingPlacement)
+    );
+    expect(
+        'Rejected ratio-conflict gear is not committed to board state',
+        !boardState[0][2].nextLayer
+    );
+
+    // Validator marks the concrete conflicting edge so the UI can render it red.
+    const conflictItems = collectBoardGearItems({
+        beamIndex: 0,
+        holeIndex: 2,
+        layer: 1,
+        gear: {
+            ...gear(24),
+            angle: getAxleAngle(0, 2)
+        },
+        isCandidate: true
+    });
+    const conflictNetwork = analyzeGearNetworkForItems(conflictItems);
+    expect(
+        'Ratio-cycle validator marks at least one edge as kinematic-conflict',
+        !conflictNetwork.isValid &&
+            conflictNetwork.connections.some(connection =>
+                connection.type === 'kinematic-conflict'
+            ),
+        JSON.stringify(conflictNetwork.connections)
+    );
+
     // Gear-pair matrix: integer pitch-center distances must mesh.
     const toothed = GEARS.filter(item => item.teeth > 0);
     for (let i = 0; i < toothed.length; i++) {

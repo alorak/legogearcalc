@@ -13,7 +13,7 @@
             HOLE_RADIUS_PX: 15,
             BEAM_PADDING_LEFT_PX: 5,
             HOLE_ROW_MARGIN_LEFT_PX: 30,
-            AXLE_CENTER_Y_PX: 24,
+            AXLE_CENTER_Y_PX: 25,
             SIDE_VIEW_SCALE: 0.5
         });
 
@@ -43,6 +43,51 @@
             { teeth: 36, radius: 2.25, color: '#1a1a1a', type: 'spur', partNum: '32498', elementId: '4255563' },
             { teeth: 40, radius: 2.5, color: '#7f8c8d', type: 'spur', partNum: '3649', elementId: '6195314' }
         ];
+
+        const GEAR_GEOMETRY = Object.freeze({
+            MESH_DISTANCE_TOLERANCE_STUDS: 0.065,
+            TOOTH_PHASE_TOLERANCE_CYCLES: 0.06,
+            GEAR_ADDENDUM_STUDS: 0.125,
+            BUSH_COLLISION_RADIUS_STUDS: 0.46,
+            COLLISION_CLEARANCE_STUDS: 0.015
+        });
+
+        const MESH_DISTANCE_TOLERANCE_STUDS = GEAR_GEOMETRY.MESH_DISTANCE_TOLERANCE_STUDS;
+        const TOOTH_PHASE_TOLERANCE_CYCLES = GEAR_GEOMETRY.TOOTH_PHASE_TOLERANCE_CYCLES;
+        const GEAR_ADDENDUM_STUDS = GEAR_GEOMETRY.GEAR_ADDENDUM_STUDS;
+        const BUSH_COLLISION_RADIUS_STUDS = GEAR_GEOMETRY.BUSH_COLLISION_RADIUS_STUDS;
+        const COLLISION_CLEARANCE_STUDS = GEAR_GEOMETRY.COLLISION_CLEARANCE_STUDS;
+
+        function isToothedGear(gear) {
+            return !!gear && gear.type !== 'bush' && Number.isFinite(gear.teeth) && gear.teeth > 0;
+        }
+
+        function getPitchRadius(gear) {
+            if (!isToothedGear(gear)) return null;
+            return gear.teeth / 16;
+        }
+
+        function getPhysicalRadius(gear) {
+            if (!gear) return 0;
+            if (gear.type === 'bush') return BUSH_COLLISION_RADIUS_STUDS;
+            const pitchRadius = getPitchRadius(gear);
+            return pitchRadius === null ? 0 : pitchRadius + GEAR_ADDENDUM_STUDS;
+        }
+
+        function getToothPitchDegrees(gear) {
+            return isToothedGear(gear) ? 360 / gear.teeth : null;
+        }
+
+        function syncGeometryCssVariables() {
+            if (typeof document === 'undefined' || !document.documentElement) return;
+
+            const root = document.documentElement.style;
+            root.setProperty('--stud-px', `${LEGO_GEOMETRY.STUD_PX}px`);
+            root.setProperty('--beam-height-px', `${LEGO_GEOMETRY.BEAM_HEIGHT_PX}px`);
+            root.setProperty('--hole-size-px', `${LEGO_GEOMETRY.HOLE_SIZE_PX}px`);
+            root.setProperty('--hole-radius-px', `${LEGO_GEOMETRY.HOLE_RADIUS_PX}px`);
+            root.setProperty('--axle-center-y-px', `${LEGO_GEOMETRY.AXLE_CENTER_Y_PX}px`);
+        }
 
         function rebrickableElementImage(elementId) {
             return `${REBRICKABLE_ELEMENT_CDN}/${elementId}.jpg`;
