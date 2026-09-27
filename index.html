@@ -14,60 +14,82 @@
         <div class="main-grid">
             <!-- Sidebar -->
             <aside class="sidebar">
-                <!-- 1. Beam Count Selector (First) -->
-                <h3 style="font-size: 0.95rem; color: #0066cc; margin-bottom: 10px;"><span
-                        class="en-content">Beams</span><span class="tr-content">Kiriş</span></h3>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px;">
-                    <button class="beam-count-btn active" onclick="setBeamCount(1)" data-count="1">1</button>
-                    <button class="beam-count-btn" onclick="setBeamCount(2)" data-count="2">2</button>
-                    <button class="beam-count-btn" onclick="setBeamCount(3)" data-count="3">3</button>
-                    <button class="beam-count-btn" onclick="setBeamCount(4)" data-count="4">4</button>
-                    <button class="beam-count-btn" onclick="setBeamCount(5)" data-count="5">5</button>
-                </div>
+                <!-- Beam controls -->
+                <section class="sidebar-card beam-card">
+                    <div class="sidebar-card-header">
+                        <h3 class="sidebar-card-title">
+                            <span class="en-content">Beams</span><span class="tr-content">Kiriş</span>
+                        </h3>
+                        <div class="lang-switch compact-lang-switch" aria-label="Language">
+                            <button class="lang-btn active" type="button" onclick="setLang('en')">EN</button>
+                            <button class="lang-btn" type="button" onclick="setLang('tr')">TR</button>
+                        </div>
+                    </div>
 
-                <!-- Beam Color Selection -->
-                <!-- Kiriş Rengi Label Removed -->
-                <div style="display: flex; gap: 8px; margin-bottom: 20px;">
-                    <button onclick="setBeamColor('blue')"
-                        style="width:24px; height:24px; background:#0055BF; border:2px solid #e2e8f0; border-radius:50%; cursor:pointer; transition: transform 0.2s;"
-                        onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'"
-                        title="Mavi"></button>
-                    <button onclick="setBeamColor('red')"
-                        style="width:24px; height:24px; background:#C91A09; border:2px solid #e2e8f0; border-radius:50%; cursor:pointer; transition: transform 0.2s;"
-                        onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'"
-                        title="Kırmızı"></button>
-                    <button onclick="setBeamColor('yellow')"
-                        style="width:24px; height:24px; background:#F2CD37; border:2px solid #e2e8f0; border-radius:50%; cursor:pointer; transition: transform 0.2s;"
-                        onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'"
-                        title="Sarı"></button>
-                    <button onclick="setBeamColor('green')"
-                        style="width:24px; height:24px; background:#237841; border:2px solid #e2e8f0; border-radius:50%; cursor:pointer; transition: transform 0.2s;"
-                        onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'"
-                        title="Yeşil"></button>
-                    <button onclick="setBeamColor('white')"
-                        style="width:24px; height:24px; background:#FFFFFF; border:2px solid #cbd5e1; border-radius:50%; cursor:pointer; transition: transform 0.2s;"
-                        onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'"
-                        title="Beyaz"></button>
-                    <button onclick="setBeamColor('black')"
-                        style="width:24px; height:24px; background:#1e293b; border:2px solid #e2e8f0; border-radius:50%; cursor:pointer; transition: transform 0.2s;"
-                        onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'"
-                        title="Siyah"></button>
-                </div>
+                    <div class="beam-toolbar">
+                        <div class="picker-wrap">
+                            <button class="compact-picker beam-count-picker" id="beamCountPicker" type="button"
+                                aria-haspopup="true" aria-expanded="false" onclick="toggleBeamCountMenu(event)">
+                                <span class="beam-count-value" id="beamCountValue">1</span>
+                                <span class="picker-chevron" aria-hidden="true">⌄</span>
+                            </button>
+                            <div class="picker-menu beam-count-menu" id="beamCountMenu" role="menu">
+                                <button class="picker-option beam-count-option selected" type="button" data-count="1"
+                                    onclick="selectBeamCount(1, event)">1</button>
+                                <button class="picker-option beam-count-option" type="button" data-count="2"
+                                    onclick="selectBeamCount(2, event)">2</button>
+                                <button class="picker-option beam-count-option" type="button" data-count="3"
+                                    onclick="selectBeamCount(3, event)">3</button>
+                                <button class="picker-option beam-count-option" type="button" data-count="4"
+                                    onclick="selectBeamCount(4, event)">4</button>
+                                <button class="picker-option beam-count-option" type="button" data-count="5"
+                                    onclick="selectBeamCount(5, event)">5</button>
+                            </div>
+                        </div>
 
-                <!-- 2. Gear Selection -->
-                <div style="padding-top: 15px; border-top: 1px solid #e2e8f0;">
-                    <h3 style="font-size: 0.95rem; color: #0066cc; margin-bottom: 10px;"><span
-                            class="en-content">Gears</span><span class="tr-content">Dişliler</span></h3>
+                        <div class="picker-wrap color-picker-wrap">
+                            <button class="compact-picker color-picker" id="beamColorPicker" type="button"
+                                aria-haspopup="true" aria-expanded="false" onclick="toggleBeamColorMenu(event)">
+                                <span class="color-swatch" id="beamColorSwatch" style="--swatch-color:#0055BF"></span>
+                                <span class="picker-chevron" aria-hidden="true">⌄</span>
+                            </button>
+                            <div class="picker-menu color-menu" id="beamColorMenu" role="menu">
+                                <button class="color-option selected" type="button" data-color="blue" title="Mavi / Blue"
+                                    onclick="selectBeamColor('blue', event)"><span class="color-swatch" style="--swatch-color:#0055BF"></span></button>
+                                <button class="color-option" type="button" data-color="red" title="Kırmızı / Red"
+                                    onclick="selectBeamColor('red', event)"><span class="color-swatch" style="--swatch-color:#C91A09"></span></button>
+                                <button class="color-option" type="button" data-color="yellow" title="Sarı / Yellow"
+                                    onclick="selectBeamColor('yellow', event)"><span class="color-swatch" style="--swatch-color:#F2CD37"></span></button>
+                                <button class="color-option" type="button" data-color="green" title="Yeşil / Green"
+                                    onclick="selectBeamColor('green', event)"><span class="color-swatch" style="--swatch-color:#237841"></span></button>
+                                <button class="color-option" type="button" data-color="white" title="Beyaz / White"
+                                    onclick="selectBeamColor('white', event)"><span class="color-swatch light-swatch" style="--swatch-color:#FFFFFF"></span></button>
+                                <button class="color-option" type="button" data-color="black" title="Siyah / Black"
+                                    onclick="selectBeamColor('black', event)"><span class="color-swatch" style="--swatch-color:#1e293b"></span></button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Gear controls -->
+                <section class="sidebar-card gears-card">
+                    <div class="sidebar-card-header">
+                        <h3 class="sidebar-card-title">
+                            <span class="en-content">Gears</span><span class="tr-content">Dişliler</span>
+                        </h3>
+                    </div>
+
                     <div class="gear-palette" id="gearPalette">
                         <!-- Gears injected by JS -->
                     </div>
+
+                    <div class="gear-card-spacer" aria-hidden="true"></div>
+
                     <div class="gear-action-row">
-                        <button class="delete-mode-btn" id="deleteModeBtn" onclick="toggleDeleteMode()"
-                            style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <button class="delete-mode-btn" id="deleteModeBtn" onclick="toggleDeleteMode()">
                             <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="./assets/icons.svg#icon-trash"></use></svg>
                             <span class="en-content">Delete Gear</span><span class="tr-content">Dişli Sil</span>
                         </button>
-                        <!-- Tooth Button Added -->
                         <button class="delete-mode-btn tooth-mode-btn" id="toothModeBtn" onclick="toggleToothMode()">
                             <div class="tooth-btn-icon" id="toothBtnIcon">
                                 <svg class="ui-icon icon-tooth" aria-hidden="true" focusable="false"><use href="./assets/icons.svg#icon-tooth"></use></svg>
@@ -75,28 +97,39 @@
                             <span class="tooth-label">Tooth</span>
                         </button>
                     </div>
-                </div>
 
-                <!-- Tooth Settings Panel -->
-                <!-- Duplicate Panel Removed -->
+                    <div id="toothSettingsPanel" class="tooth-settings-panel">
+                        <h4 class="tooth-settings-title">
+                            <span class="en-content">Tooth Direction</span><span class="tr-content">Tooth Yönü</span>
+                        </h4>
+                        <div class="tooth-settings-control">
+                            <span id="pointerAngleDisplay">0°</span>
+                            <button class="btn tooth-rotate-btn" onclick="rotatePointerSetting()">
+                                ↻ +90° <span class="en-content">Rotate</span><span class="tr-content">Çevir</span>
+                            </button>
+                        </div>
+                        <p class="tooth-settings-help">
+                            <span class="en-content">Select the angle and click on a gear to add.</span><span
+                                class="tr-content">İstediğiniz açıyı seçip dişliye tıklayarak ekleyin.</span>
+                        </p>
+                    </div>
+                </section>
 
-                <!-- 3. Motor Placement -->
-                <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
-                    <h3 style="font-size: 0.95rem; color: #0066cc; margin-bottom: 10px;">Motor</h3>
+                <!-- Motor controls -->
+                <section class="sidebar-card motor-card">
+                    <div class="sidebar-card-header">
+                        <h3 class="sidebar-card-title">Motor</h3>
+                    </div>
+
                     <button class="motor-mode-btn" id="motorModeBtn" onclick="toggleMotorMode()">
                         ⚡ <span class="en-content">Add Motor</span><span class="tr-content">Motor Ekle</span>
                     </button>
 
-                    <!-- Motor Info (shown when motor is placed) -->
-                    <div id="motorInfo"
-                        style="display: none; margin-top: 10px; padding: 10px; background: #fffbeb; border-radius: 8px; border: 1px solid #f59e0b;">
-                        <div style="font-size: 0.8rem; color: #92400e; margin-bottom: 8px;">
+                    <div id="motorInfo" class="motor-info-panel">
+                        <div class="motor-info-label">
                             ⚡ Motor: <span id="motorPositionLabel">-</span>
                         </div>
-
-                        <!-- Motor Direction -->
-                        <!-- Label removed -->
-                        <div style="display: flex; gap: 6px; margin-top: 4px;">
+                        <div class="motor-direction-row">
                             <button class="motor-dir-btn active" id="motorDirCW" onclick="setMotorDirection(1)">
                                 ↻ <span class="en-content">Clockwise</span><span class="tr-content">Saat Yönü</span>
                             </button>
@@ -106,48 +139,19 @@
                         </div>
                     </div>
 
-                    <div id="motorHelpText" style="display: none;"></div>
+                    <div id="motorHelpText" style="display:none;"></div>
 
-                    <!-- Speed Control -->
-                    <div style="margin-top: 12px;">
-                        <label style="font-size: 0.8rem; color: #475569;"><span class="en-content">Speed:</span><span
-                                class="tr-content">Dönüş Hızı:</span></label>
+                    <div class="speed-control">
+                        <label><span class="en-content">Speed:</span><span class="tr-content">Dönüş Hızı:</span></label>
                         <input type="range" id="speedSlider" min="0.1" max="5" step="0.1" value="1"
-                            style="width: 100%; cursor: pointer; margin-top: 5px;" onchange="updateSpeedLabel()">
-                        <div
-                            style="display: flex; justify-content: space-between; font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">
+                            onchange="updateSpeedLabel()">
+                        <div class="speed-scale">
                             <span>0.1x</span>
-                            <span id="speedLabel" style="font-weight: bold; color: #0066cc;">1x</span>
+                            <span id="speedLabel">1x</span>
                             <span>5x</span>
                         </div>
                     </div>
-                </div>
-
-                <!-- Tooth Settings Panel (Moved below Motor) -->
-                <div id="toothSettingsPanel"
-                    style="display: none; margin-top: 20px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
-                    <h3 style="font-size: 0.95rem; color: #d97706; margin-bottom: 10px;"><span class="en-content">Tooth
-                            Direction</span><span class="tr-content">Tooth (Gösterge) Yönü</span></h3>
-                    <div
-                        style="display: flex; align-items: center; gap: 10px; background: #fff7ed; padding: 10px; border-radius: 8px; border: 1px solid #ffedd5;">
-                        <span style="font-size: 0.9rem; font-weight: bold; color: #9a3412; min-width: 40px;"
-                            id="pointerAngleDisplay">0°</span>
-                        <button class="btn" onclick="rotatePointerSetting()"
-                            style="flex: 1; padding: 6px; font-size: 0.8rem; background: #fff; border: 1px solid #fdba74; color: #c2410c; cursor: pointer;">
-                            ↻ +90° <span class="en-content">Rotate</span><span class="tr-content">Çevir</span>
-                        </button>
-                    </div>
-                    <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 8px; margin-bottom: 0;">
-                        <span class="en-content">Select the angle and click on a gear to add.</span><span
-                            class="tr-content">İstediğiniz açıyı seçip dişliye tıklayarak ekleyin.</span>
-                    </p>
-                </div>
-                <div class="sidebar-footer">
-                    <div class="lang-switch" aria-label="Language">
-                        <button class="lang-btn active" type="button" onclick="setLang('en')">EN</button>
-                        <button class="lang-btn" type="button" onclick="setLang('tr')">TR</button>
-                    </div>
-                </div>
+                </section>
             </aside>
 
             <!-- Main Canvas -->

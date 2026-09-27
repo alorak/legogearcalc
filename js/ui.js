@@ -17,6 +17,10 @@
             // Drag Events (Global)
             document.addEventListener('mousemove', handleGearDrag);
             document.addEventListener('mouseup', endGearDrag);
+            document.addEventListener('click', () => closeSidebarPickers());
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape') closeSidebarPickers();
+            });
 
             // Clear highlight when clicking on empty space in simulation container
             document.getElementById('simContainer').addEventListener('click', function (e) {
@@ -199,15 +203,77 @@
             }
         }
 
+        function closeSidebarPickers(exceptMenuId = null) {
+            ['beamCountMenu', 'beamColorMenu'].forEach(menuId => {
+                if (menuId === exceptMenuId) return;
+                const menu = document.getElementById(menuId);
+                if (menu) menu.classList.remove('open');
+            });
+
+            [['beamCountPicker', 'beamCountMenu'], ['beamColorPicker', 'beamColorMenu']].forEach(([buttonId, menuId]) => {
+                if (menuId === exceptMenuId) return;
+                const button = document.getElementById(buttonId);
+                if (button) button.setAttribute('aria-expanded', 'false');
+            });
+        }
+
+        function toggleSidebarPicker(buttonId, menuId, event) {
+            if (event) event.stopPropagation();
+            const button = document.getElementById(buttonId);
+            const menu = document.getElementById(menuId);
+            if (!button || !menu) return;
+
+            const willOpen = !menu.classList.contains('open');
+            closeSidebarPickers(willOpen ? menuId : null);
+            menu.classList.toggle('open', willOpen);
+            button.setAttribute('aria-expanded', String(willOpen));
+        }
+
+        function toggleBeamCountMenu(event) {
+            toggleSidebarPicker('beamCountPicker', 'beamCountMenu', event);
+        }
+
+        function toggleBeamColorMenu(event) {
+            toggleSidebarPicker('beamColorPicker', 'beamColorMenu', event);
+        }
+
+        function selectBeamCount(count, event) {
+            if (event) event.stopPropagation();
+            setBeamCount(count);
+            closeSidebarPickers();
+        }
+
+        function selectBeamColor(color, event) {
+            if (event) event.stopPropagation();
+            setBeamColor(color);
+            closeSidebarPickers();
+        }
+
+        function updateBeamColorControl(color) {
+            const colorMap = {
+                blue: '#0055BF',
+                red: '#C91A09',
+                yellow: '#F2CD37',
+                green: '#237841',
+                white: '#FFFFFF',
+                black: '#1e293b'
+            };
+            const swatch = document.getElementById('beamColorSwatch');
+            if (swatch && colorMap[color]) swatch.style.setProperty('--swatch-color', colorMap[color]);
+
+            document.querySelectorAll('.color-option').forEach(option => {
+                option.classList.toggle('selected', option.dataset.color === color);
+            });
+        }
+
         function setBeamCount(count) {
             beamCount = count;
 
-            // Update button states
-            document.querySelectorAll('.beam-count-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (parseInt(btn.dataset.count) === count) {
-                    btn.classList.add('active');
-                }
+            const countValue = document.getElementById('beamCountValue');
+            if (countValue) countValue.textContent = String(count);
+
+            document.querySelectorAll('.beam-count-option').forEach(option => {
+                option.classList.toggle('selected', parseInt(option.dataset.count, 10) === count);
             });
 
             // Resize boardState keeping existing data

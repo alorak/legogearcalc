@@ -69,6 +69,9 @@
 
         function setBeamColor(color) {
             beamColor = color;
+            if (typeof updateBeamColorControl === 'function') {
+                updateBeamColorControl(color);
+            }
             renderBeam();
         }
 
